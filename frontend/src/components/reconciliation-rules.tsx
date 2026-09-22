@@ -41,6 +41,7 @@ import type {
 } from '@/types'
 import { Plus, RotateCcw, Trash2, Zap, HelpCircle, ChevronUp, ChevronDown, Power, Download, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ACCOUNT_TYPE_CONFIG } from '@/lib/account-type-config'
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog'
 
 /** Names for the rules we ship. Kept here rather than sent by the API so
@@ -54,6 +55,10 @@ const SHIPPED_NAME: Record<string, string> = {
   same_client_several_invoices: 'reconciliation.rule.severalInvoices',
   similar_description: 'reconciliation.rule.similarDescription',
   same_account_exact: 'reconciliation.rule.sameAccountExact',
+  card_leg_needs_confirming: 'reconciliation.rule.cardLegNeedsConfirming',
+  destination_named_in_description: 'reconciliation.rule.destinationNamed',
+  exact_amount_nearby: 'reconciliation.rule.exactAmountNearby',
+  close_amount_wider_window: 'reconciliation.rule.closeAmountWiderWindow',
 }
 
 /** What the file says it is. A categorization export dropped into the
@@ -62,11 +67,13 @@ const SHIPPED_NAME: Record<string, string> = {
 const POLICY_FORMAT = 'securo-reconciliation-rules'
 
 const NODE_TITLE: Record<string, string> = {
+  'reconciliation.match_transfer': 'reconciliation.node.transfers',
   'reconciliation.match_invoice': 'reconciliation.node.invoices',
   'reconciliation.match_recurring': 'reconciliation.node.recurring',
 }
 
 const NODE_HINT: Record<string, string> = {
+  'reconciliation.match_transfer': 'reconciliation.node.transfersHint',
   'reconciliation.match_invoice': 'reconciliation.node.invoicesHint',
   'reconciliation.match_recurring': 'reconciliation.node.recurringHint',
 }
@@ -263,6 +270,17 @@ function conditionSummary(
 
   if (when.counterparty === 'same_payee') parts.push(t('reconciliation.cond.samePayee'))
   if (when.same_account) parts.push(t('reconciliation.cond.sameAccount'))
+  if (when.different_account) parts.push(t('reconciliation.cond.differentAccount'))
+  if (when.account_types?.length)
+    parts.push(
+      t('reconciliation.cond.accountTypes', {
+        kinds: when.account_types
+          .map((kind) => t(ACCOUNT_TYPE_CONFIG[kind]?.label ?? kind))
+          .join(', '),
+      }),
+    )
+  if (when.account_name_in_description)
+    parts.push(t('reconciliation.cond.accountNamed'))
 
   if (when.amount?.match === 'exact') parts.push(t('reconciliation.cond.amountExact'))
   else if (when.amount?.match === 'tolerance')
@@ -288,6 +306,12 @@ function conditionSummary(
     parts.push(
       t('reconciliation.cond.similarity', { min: when.description_similarity.min }),
     )
+
+  // Last, because both answer the same question and it is the one asked
+  // after everything else has already fitted: several candidates got
+  // this far, now what?
+  if (when.tie_break === 'closest_date') parts.push(t('reconciliation.cond.closestDate'))
+  if (when.unique_candidate) parts.push(t('reconciliation.cond.uniqueCandidate'))
 
   return parts.join(' · ') || t('reconciliation.cond.none')
 }
@@ -403,6 +427,28 @@ const EMPTY: ReconciliationConditions = {
   date: { before_days: 5, after_days: 30 },
 }
 
+const TRANSFER_NODE = 'reconciliation.match_transfer'
+
+/** What a brand new rule starts as, which is not the same in every set.
+ *
+ *  A transfer is by definition money crossing between two accounts, so a
+ *  rule written here without `different_account` is not a loose transfer
+ *  rule: it is one that would pair a debit and a credit sitting on the
+ *  *same* account, which is never a transfer and is sometimes a
+ *  correction. The window starts at the two days the shipped rules use
+ *  rather than the month an invoice is allowed, because a transfer that
+ *  takes a month did not happen. */
+function blankFor(node: string): ReconciliationConditions {
+  if (node !== TRANSFER_NODE) return EMPTY
+  return {
+    different_account: true,
+    amount: { match: 'exact' },
+    date: { before_days: 2, after_days: 2 },
+    tie_break: 'closest_date',
+    unique_candidate: true,
+  }
+}
+
 function RuleEditor({ open, node, rule, onClose }: EditorProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -420,7 +466,7 @@ function RuleEditor({ open, node, rule, onClose }: EditorProps) {
   const [name, setName] = useState(rule?.name ?? '')
   const [outcome, setOutcome] = useState<'link' | 'suggest'>(rule?.outcome ?? 'suggest')
   const [trigger, setTrigger] = useState<Trigger>(rule?.trigger ?? 'money_arrives')
-  const [when, setWhen] = useState<ReconciliationConditions>(rule?.when ?? EMPTY)
+  const [when, setWhen] = useState<ReconciliationConditions>(rule?.when ?? blankFor(node))
 
   // The dialog is mounted once and reused, so it has to be re-seeded
   // whenever it opens, and the seed has to be *forgotten* when it closes.
@@ -436,7 +482,7 @@ function RuleEditor({ open, node, rule, onClose }: EditorProps) {
     setName(rule?.name ?? '')
     setOutcome(rule?.outcome ?? 'suggest')
     setTrigger(rule?.trigger ?? 'money_arrives')
-    setWhen(rule?.when ?? EMPTY)
+    setWhen(rule?.when ?? blankFor(node))
   }
 
   const save = useMutation({
@@ -722,9 +768,93 @@ function RuleEditor({ open, node, rule, onClose }: EditorProps) {
           <Step
             index={3}
             title={t('reconciliation.step.match')}
-            hint={t('reconciliation.step.matchHint')}
+            hint={t(node === TRANSFER_NODE ? 'reconciliation.step.matchHintTransfer' : 'reconciliation.step.matchHint')}
           >
-            {field(
+            {/* The signals only a transfer has. Shown for this set alone
+                because they are meaningless anywhere else: an invoice has
+                no second account to be named by, and asking about credit
+                cards in the invoice editor would be a field that can
+                never do anything. */}
+            {node === TRANSFER_NODE &&
+              field(
+                t('reconciliation.field.transferSignals'),
+                t('reconciliation.field.transferSignalsHint'),
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!when.account_name_in_description}
+                      onChange={(e) =>
+                        setWhen({
+                          ...when,
+                          account_name_in_description: e.target.checked || undefined,
+                        })
+                      }
+                    />
+                    {t('reconciliation.cond.accountNamed')}
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={when.tie_break === 'closest_date'}
+                      onChange={(e) =>
+                        setWhen({
+                          ...when,
+                          tie_break: e.target.checked ? 'closest_date' : undefined,
+                        })
+                      }
+                    />
+                    {t('reconciliation.cond.closestDate')}
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!when.unique_candidate}
+                      onChange={(e) =>
+                        setWhen({
+                          ...when,
+                          unique_candidate: e.target.checked || undefined,
+                        })
+                      }
+                    />
+                    {t('reconciliation.cond.uniqueCandidate')}
+                  </label>
+                  <div className="pt-1">
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {t('reconciliation.field.accountTypes')}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {(Object.keys(ACCOUNT_TYPE_CONFIG) as (keyof typeof ACCOUNT_TYPE_CONFIG)[]).map(
+                        (kind) => (
+                          <label
+                            key={kind}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!!when.account_types?.includes(kind as never)}
+                              onChange={(e) => {
+                                const current = when.account_types ?? []
+                                const next = e.target.checked
+                                  ? [...current, kind as never]
+                                  : current.filter((item) => item !== kind)
+                                setWhen({
+                                  ...when,
+                                  account_types: next.length ? next : undefined,
+                                })
+                              }}
+                            />
+                            {t(ACCOUNT_TYPE_CONFIG[kind].label)}
+                          </label>
+                        ),
+                      )}
+                    </div>
+                  </div>
+                </div>,
+              )}
+
+            {node !== TRANSFER_NODE &&
+              field(
               t('reconciliation.field.counterparty'),
               null,
               <select
@@ -741,7 +871,7 @@ function RuleEditor({ open, node, rule, onClose }: EditorProps) {
 
             {field(
               t('reconciliation.field.amountMatch'),
-              t('reconciliation.field.amountMatchHint'),
+              t(node === TRANSFER_NODE ? 'reconciliation.field.amountMatchHintTransfer' : 'reconciliation.field.amountMatchHint'),
               <>
                 <div className="flex gap-2">
                   <select
@@ -883,7 +1013,7 @@ function RuleEditor({ open, node, rule, onClose }: EditorProps) {
 
             {field(
               t('reconciliation.field.window'),
-              t('reconciliation.field.windowHint'),
+              t(node === TRANSFER_NODE ? 'reconciliation.field.windowHintTransfer' : 'reconciliation.field.windowHint'),
               <div className="flex gap-2">
                 <div className="flex-1">
                   <span className="text-xs text-muted-foreground">

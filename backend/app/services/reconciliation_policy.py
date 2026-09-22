@@ -262,6 +262,138 @@ MATCH_PLACEHOLDER: dict[str, Any] = {
     "on_ambiguity": "suggest",
 }
 
+#: The same money leaving one account and arriving in another.
+#:
+#: **This node is not new behaviour looking for users.** Transfer
+#: detection has run on every sync since long before this file existed,
+#: as a hundred and forty lines with the window, the signals and the
+#: decision to link rather than ask all written as constants nobody could
+#: see or change. Everything below was already happening. What changes is
+#: that it is now on a page, in the workspace's own words, with a switch
+#: next to it.
+#:
+#: Three things the old code could not do, and each is an open report:
+#:
+#:   - **It never read the description.** Two transfers of the same
+#:     amount leaving one account on the same day were told apart by
+#:     whichever row the database returned first, even when one line
+#:     plainly read `To FORTUNEO ACCOUNT`. `destination_named_in_description`
+#:     is that missing signal.
+#:   - **It only ever linked.** There was no way to say *this one is
+#:     plausible, ask me*, so a reimbursement that happened to match a
+#:     purchase was silently removed from both income and the card's
+#:     bill. Now the doubtful cases have somewhere to go.
+#:   - **It could not be turned off.** A workspace that wants to pair its
+#:     transfers by hand had to accept the guesses and undo them.
+#:     Disabling every rule here is now a supported answer.
+#:
+#: Cross-currency pairs stay out, and not by omission: the engine refuses
+#: a candidate whose currency differs, because matching across currencies
+#: needs a rate, a date to take it on, and somewhere to book the
+#: remainder. A transfer between accounts of different currencies is made
+#: with the transfer tool, which asks for both amounts.
+MATCH_TRANSFER: dict[str, Any] = {
+    "version": POLICY_VERSION,
+    "node": "reconciliation.match_transfer",
+    "scope": {
+        "movement": "any",
+        # An opening balance is where an account started, not money that
+        # moved; a generated placeholder is a promise rather than the
+        # money itself. Pairing either would invent a transfer.
+        "ignore_transaction_sources": ["opening_balance", "recurring"],
+    },
+    "strategies": [
+        {
+            # First, so it decides before either linking rule can. A
+            # credit card is where the false positives live: a purchase
+            # and an unrelated reimbursement of the same value look
+            # exactly like a transfer, and linking them takes the
+            # purchase out of the bill and the money out of income at
+            # once, silently.
+            #
+            # Suggesting instead costs a real card payment one click a
+            # month, and anybody for whom that is the wrong trade sets
+            # this rule to link and never sees it again. That choice is
+            # the reason this is a page and not a constant.
+            "id": "card_leg_needs_confirming",
+            "enabled": True,
+            "outcome": "suggest",
+            "trigger": "both",
+            "when": {
+                "different_account": True,
+                "account_types": ["credit_card"],
+                "amount": {"match": "exact"},
+                "date": {"before_days": 5, "after_days": 5},
+            },
+        },
+        {
+            # The signal the old code was missing. When the statement
+            # line names where the money went, that is better evidence
+            # than the date, and it is the only thing that separates two
+            # same-day transfers of the same amount.
+            #
+            # `unique_candidate` even here: two transfers to the *same*
+            # named account on one day are genuinely indistinguishable,
+            # and this rule should not be the one that pretends
+            # otherwise.
+            "id": "destination_named_in_description",
+            "enabled": True,
+            "outcome": "link",
+            "trigger": "both",
+            "when": {
+                "different_account": True,
+                "account_name_in_description": True,
+                "amount": {"match": "exact"},
+                "date": {"before_days": 2, "after_days": 2},
+                "tie_break": "closest_date",
+                "unique_candidate": True,
+            },
+        },
+        {
+            # What has always run, with the window it has always used.
+            # The difference is `unique_candidate`: where the old code
+            # took whichever row came back first, an ambiguous pair now
+            # becomes a question instead of a coin toss.
+            "id": "exact_amount_nearby",
+            "enabled": True,
+            "outcome": "link",
+            "trigger": "both",
+            "when": {
+                "different_account": True,
+                "amount": {"match": "exact"},
+                "date": {"before_days": 2, "after_days": 2},
+                # Closest first, and a question only when nothing
+                # separates them. This keeps the old detector's best
+                # instinct and drops the coin toss it fell back on.
+                "tie_break": "closest_date",
+                "unique_candidate": True,
+            },
+        },
+        {
+            # Off, and on the page anyway.
+            #
+            # A wire that arrives a few cents short of what left is a
+            # real transfer with a fee taken out of it, and no rule above
+            # will ever pair it. But a percentage band over a five-day
+            # window also matches a great many things that are not
+            # transfers, and a queue that fills up is a queue people stop
+            # reading. So it ships visible and switched off: somebody who
+            # moves money between countries turns it on knowing what they
+            # are buying, and everybody else is not asked to pay for it.
+            "id": "close_amount_wider_window",
+            "enabled": False,
+            "outcome": "suggest",
+            "trigger": "both",
+            "when": {
+                "different_account": True,
+                "amount": {"match": "tolerance", "percent": "1"},
+                "date": {"before_days": 5, "after_days": 5},
+            },
+        },
+    ],
+    "on_ambiguity": "suggest",
+}
+
 #: A weekly bill sits closer to its neighbours, so its window narrows or
 #: a charge could match the wrong occurrence. Carried as an override on
 #: the strategy rather than as a second document.
@@ -273,6 +405,7 @@ _DEFAULTS: dict[str, dict[str, Any]] = {
     MATCH_INVOICE["node"]: MATCH_INVOICE,
     MATCH_RECURRING["node"]: MATCH_RECURRING,
     MATCH_PLACEHOLDER["node"]: MATCH_PLACEHOLDER,
+    MATCH_TRANSFER["node"]: MATCH_TRANSFER,
 }
 
 

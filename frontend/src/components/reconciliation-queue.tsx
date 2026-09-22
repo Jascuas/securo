@@ -66,7 +66,7 @@ function Evidence({ suggestion }: { suggestion: ReconciliationSuggestion }) {
       label:
         scores.days_apart === 0
           ? t('reconciliation.evidence.sameDay')
-          : t('reconciliation.evidence.daysApart', { days: Math.abs(scores.days_apart) }),
+          : t('reconciliation.evidence.daysApart', { count: Math.abs(scores.days_apart) }),
       good: Math.abs(scores.days_apart) <= 3,
     })
   }
@@ -161,7 +161,14 @@ export function ReconciliationQueue({ canWrite }: { canWrite: boolean }) {
                     {t(
                       suggestion.expectation_kind === 'invoice'
                         ? 'reconciliation.queue.maySettle'
-                        : 'reconciliation.queue.mayBe',
+                        : suggestion.expectation_kind === 'transaction'
+                          // "may settle" and "may be" both read as one
+                          // record explaining another. Two legs of a
+                          // transfer are neither: they are the same money
+                          // seen twice, and the row has to say so or the
+                          // reader answers a question we did not ask.
+                          ? 'reconciliation.queue.mayPairWith'
+                          : 'reconciliation.queue.mayBe',
                       {
                         // One payment can answer several promises, and the
                         // question is the whole question, so the row names
