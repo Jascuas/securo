@@ -2446,8 +2446,6 @@
     },
     "moveUp": "Diese früher prüfen",
     "moveDown": "Diese später prüfen",
-    "matchingTitle": "Abgleichregeln",
-    "matchingHint": "Wie wir entscheiden, dass zwei Einträge dasselbe Geld sind.",
     "pair": {
       "owed": "Was offen ist",
       "arrived": "Was sich bewegt hat",
@@ -2477,6 +2475,14 @@
     "invalidImportFile": "Das ist keine Datei mit Abgleichsregeln",
     "importConfirmTitle": "Abgleichsregeln importieren?",
     "importConfirmDescription": "Die Datei {{file}} enthält {{count}} Regeln.",
-    "importOverwriteWarning": "Der Import ersetzt die Abgleichsregeln dieses Arbeitsbereichs samt ihrer Reihenfolge. Das lässt sich nicht rückgängig machen."
+    "importOverwriteWarning": "Der Import ersetzt die Abgleichsregeln dieses Arbeitsbereichs samt ihrer Reihenfolge. Das lässt sich nicht rückgängig machen.",
+    "card": {
+      "transfers": "Überweisungsregeln",
+      "transfersHint": "Wie wir entscheiden, dass zwei Einträge eine Überweisung zwischen Ihren Konten sind.",
+      "invoices": "Rechnungsregeln",
+      "invoicesHint": "Wie wir entscheiden, welche Zahlung welche Rechnung begleicht.",
+      "recurring": "Regeln für Wiederkehrendes",
+      "recurringHint": "Wie wir entscheiden, dass eine Buchung die erwartete Rechnung ist."
+    }
   }
 }

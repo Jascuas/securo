@@ -2587,8 +2587,6 @@
     },
     "moveUp": "Skúšať túto skôr",
     "moveDown": "Skúšať túto neskôr",
-    "matchingTitle": "Pravidlá párovania",
-    "matchingHint": "Ako určujeme, že dva záznamy sú tie isté peniaze.",
     "pair": {
       "owed": "Čo sa dlhuje",
       "arrived": "Čo sa pohlo",
@@ -2618,6 +2616,14 @@
     "invalidImportFile": "Toto nie je súbor s pravidlami párovania",
     "importConfirmTitle": "Importovať pravidlá párovania?",
     "importConfirmDescription": "Súbor {{file}} obsahuje {{count}} pravidiel.",
-    "importOverwriteWarning": "Import nahradí pravidlá párovania tohto priestoru vrátane ich poradia. Nedá sa to vrátiť."
+    "importOverwriteWarning": "Import nahradí pravidlá párovania tohto priestoru vrátane ich poradia. Nedá sa to vrátiť.",
+    "card": {
+      "transfers": "Pravidlá prevodov",
+      "transfersHint": "Ako určujeme, že dva záznamy sú ten istý prevod medzi vašimi účtami.",
+      "invoices": "Pravidlá faktúr",
+      "invoicesHint": "Ako určujeme, ktorá platba vyrovnáva ktorú faktúru.",
+      "recurring": "Pravidlá opakovaných",
+      "recurringHint": "Ako určujeme, že odpis je účet, ktorý ste už očakávali."
+    }
   }
 }

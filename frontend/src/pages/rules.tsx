@@ -692,9 +692,8 @@ export default function RulesPage() {
       {/* Matching rules below categorization rules, because they are the
           same promise made twice: the software decides things about your
           money, and you get to see the decision and disagree with it.
-          Not mounted at all without the module: rendering it and letting
-          it decide to show nothing still costs a request that comes back
-          404. */}
+          One card per set, and transfers leads, because that is the set
+          every workspace has whether or not it ever asked for one. */}
       <div className="mt-6 space-y-6">
         <ReconciliationRules canWrite={canWrite} />
       </div>

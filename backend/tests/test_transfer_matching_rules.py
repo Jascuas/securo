@@ -339,3 +339,62 @@ async def test_the_wider_window_rule_ships_visible_and_switched_off(
     }
     assert rules_by_id["close_amount_wider_window"]["enabled"] is False
     assert rules_by_id["close_amount_wider_window"]["outcome"] == "suggest"
+
+
+@pytest.mark.asyncio
+async def test_exporting_from_one_card_carries_only_that_card(
+    client: AsyncClient, auth_headers
+):
+    """Each set is its own card with its own button.
+
+    A button sitting under *Transfer rules* that quietly hands over the
+    invoice rules as well is a button that lies, and the file is the
+    thing people pass to each other.
+    """
+    whole = await client.get("/api/reconciliation/rules/export", headers=auth_headers)
+    assert whole.status_code == 200, whole.text
+    assert NODE in {n["node"] for n in whole.json()["nodes"]}
+
+    scoped = await client.get(
+        "/api/reconciliation/rules/export",
+        headers=auth_headers,
+        params={"node": NODE},
+    )
+    assert scoped.status_code == 200, scoped.text
+    assert {n["node"] for n in scoped.json()["nodes"]} == {NODE}
+
+
+@pytest.mark.asyncio
+async def test_importing_on_one_card_cannot_rewrite_another_set(
+    client: AsyncClient, auth_headers, session: AsyncSession, test_user
+):
+    """The scope is the card, not the file.
+
+    Otherwise a file carrying every set, dropped on the transfers card,
+    silently replaces rules the reader was not looking at.
+    """
+    file = (
+        await client.get("/api/reconciliation/rules/export", headers=auth_headers)
+    ).json()
+    for node in file["nodes"]:
+        for rule in node["rules"]:
+            rule["enabled"] = False
+
+    resp = await client.post(
+        "/api/reconciliation/rules/import",
+        headers=auth_headers,
+        params={"node": NODE},
+        json={"payload": file, "overwrite": True},
+    )
+    assert resp.status_code == 200, resp.text
+
+    listing = (
+        await client.get("/api/reconciliation/rules", headers=auth_headers)
+    ).json()
+    by_node = {group["node"]: group for group in listing}
+    assert all(not rule["enabled"] for rule in by_node[NODE]["rules"])
+
+    other = reconciliation_policy.MATCH_RECURRING["node"]
+    if other in by_node:
+        # Untouched: the file asked, the scope refused.
+        assert any(rule["enabled"] for rule in by_node[other]["rules"])

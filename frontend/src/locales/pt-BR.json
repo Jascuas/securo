@@ -2318,7 +2318,7 @@
       "closestDate": "a data mais próxima vence",
       "uniqueCandidate": "só um candidato serve"
     },
-    "newRule": "Nova regra de conciliação",
+    "newRule": "Nova regra de vínculo",
     "saved": "Regra salva",
     "reset": "Regra restaurada",
     "restore": "Voltar ao padrão",
@@ -2356,7 +2356,7 @@
       "textExcludes": "não pode conter…",
       "textHint": "Vários, separados por vírgula, significa qualquer um deles.",
       "trigger": "Quando procuramos",
-      "triggerHint": "A conciliação acontece em dois momentos, e a evidência não é a mesma nos dois.",
+      "triggerHint": "O vínculo acontece em dois momentos, e a evidência não é a mesma nos dois.",
       "amountMatch": "O quão perto o valor precisa estar",
       "amountMatchHint": "Comparado com o que ainda se deve, não com o total original.",
       "amountBandHint": "Sobre o pagamento em si: um tamanho que você quer, ou não quer, que esta regra trate.",
@@ -2385,7 +2385,7 @@
     },
     "queue": {
       "title": "Esperando você",
-      "hint": "Conciliações que precisam da sua confirmação.",
+      "hint": "Vínculos que precisam da sua confirmação.",
       "empty": "Nada para revisar. Tudo casou sozinho.",
       "aPayment": "Um pagamento",
       "maySettle": "pode quitar {{name}}",
@@ -2428,7 +2428,7 @@
       "bothHint": "A regra vale nos dois sentidos."
     },
     "history": {
-      "title": "O que a conciliação fez",
+      "title": "O que o vínculo automático fez",
       "hint": "Mais recentes primeiro.",
       "byPerson": "por você",
       "byRules": "pelas regras",
@@ -2442,12 +2442,10 @@
         "expired": "Sugestão expirou: {{name}}",
         "unlinked": "Vínculo desfeito com {{name}}"
       },
-      "empty": "Nada ainda. Isto se preenche conforme a conciliação liga, pergunta e é respondida."
+      "empty": "Nada ainda. Isto se preenche conforme o vínculo automático liga, pergunta e é respondido."
     },
     "moveUp": "Tentar esta antes",
     "moveDown": "Tentar esta depois",
-    "matchingTitle": "Regras de conciliação",
-    "matchingHint": "Como decidimos que dois registros são o mesmo dinheiro.",
     "pair": {
       "owed": "O que se deve",
       "arrived": "O que se moveu",
@@ -2469,14 +2467,22 @@
       "thisLegAmount": "nesta ponta"
     },
     "discarded": "Excluídas deste espaço:",
-    "noneLeft": "Nenhuma regra de conciliação neste conjunto. Nada aqui é conciliado automaticamente.",
+    "noneLeft": "Nenhuma regra neste conjunto. Nada aqui é vinculado automaticamente.",
     "confirmDeleteTitle": "Excluir esta regra?",
     "confirmDeleteDescription": "\"{{name}}\" para de decidir qualquer coisa. Se for uma das nossas, você pode trazê-la de volta depois.",
-    "exported": "Regras de conciliação baixadas",
+    "exported": "Regras de vínculo baixadas",
     "imported": "{{imported}} regras importadas ({{skipped}} ignoradas)",
-    "invalidImportFile": "Este não é um arquivo de regras de conciliação",
-    "importConfirmTitle": "Importar regras de conciliação?",
+    "invalidImportFile": "Este não é um arquivo de regras de vínculo",
+    "importConfirmTitle": "Importar regras de vínculo?",
     "importConfirmDescription": "O arquivo {{file}} contém {{count}} regras.",
-    "importOverwriteWarning": "A importação substitui as regras de conciliação deste espaço, inclusive a ordem delas. Não dá para desfazer."
+    "importOverwriteWarning": "A importação substitui as regras deste conjunto, inclusive a ordem delas. Não dá para desfazer.",
+    "card": {
+      "transfers": "Regras de Transferência",
+      "transfersHint": "Como decidimos que dois registros são a mesma transferência entre as suas contas.",
+      "invoices": "Regras de Fatura",
+      "invoicesHint": "Como decidimos qual pagamento quita qual fatura.",
+      "recurring": "Regras de Recorrentes",
+      "recurringHint": "Como decidimos que uma cobrança é a conta que você já esperava."
+    }
   }
 }

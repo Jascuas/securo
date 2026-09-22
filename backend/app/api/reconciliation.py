@@ -292,13 +292,23 @@ async def reset_rule(
 # ---------------------------------------------------------------------------
 @router.get("/rules/export")
 async def export_rules(
+    node: Optional[str] = None,
     ctx: WorkspaceContext = Depends(_read),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """The matching policy as a file, with ids resolved to names."""
-    payload = await portability.export_policy(
-        session, ctx.workspace.id, rules.nodes_for(resolve_modules(ctx.workspace))
-    )
+    """The matching policy as a file, with ids resolved to names.
+
+    `node` narrows it to one set. Each set is its own card on the page
+    with its own button, and a button under *Transfers* that quietly
+    hands over the invoice rules too is a button that lies. Without it
+    the file carries everything this workspace has, which is what the
+    page-level export always meant.
+    """
+    available = rules.nodes_for(resolve_modules(ctx.workspace))
+    if node is not None:
+        _assert_node(ctx, node)
+        available = (node,)
+    payload = await portability.export_policy(session, ctx.workspace.id, available)
     return JSONResponse(
         content=payload,
         headers={
@@ -310,9 +320,22 @@ async def export_rules(
 @router.post("/rules/import", response_model=ReconciliationImportResponse)
 async def import_rules(
     data: ReconciliationImportRequest,
+    node: Optional[str] = None,
     ctx: WorkspaceContext = Depends(_write),
     session: AsyncSession = Depends(get_async_session),
 ):
+    """Take a policy file back in.
+
+    `node` narrows it the same way the export does, and for the stronger
+    reason: the button sits on one card, so a file dropped on *Transfers*
+    must not be able to rewrite the invoice rules. Sets the file carries
+    and this call did not ask for are skipped and counted, exactly as a
+    set this workspace does not have already is.
+    """
+    available = rules.nodes_for(resolve_modules(ctx.workspace))
+    if node is not None:
+        _assert_node(ctx, node)
+        available = (node,)
     try:
         result = await portability.import_policy(
             session,
@@ -320,7 +343,7 @@ async def import_rules(
             ctx.user_id,
             data.payload,
             overwrite=data.overwrite,
-            nodes=rules.nodes_for(resolve_modules(ctx.workspace)),
+            nodes=available,
         )
     except rules.ExistingPolicyError as exc:
         # 409 rather than 400: nothing is wrong with the file, and the

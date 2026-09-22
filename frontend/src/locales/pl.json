@@ -2553,8 +2553,6 @@
     },
     "moveUp": "Sprawdzaj tę wcześniej",
     "moveDown": "Sprawdzaj tę później",
-    "matchingTitle": "Reguły dopasowania",
-    "matchingHint": "Jak ustalamy, że dwa zapisy to te same pieniądze.",
     "pair": {
       "owed": "Co jest należne",
       "arrived": "Co się poruszyło",
@@ -2584,6 +2582,14 @@
     "invalidImportFile": "To nie jest plik z regułami dopasowania",
     "importConfirmTitle": "Zaimportować reguły dopasowania?",
     "importConfirmDescription": "Plik {{file}} zawiera {{count}} reguł.",
-    "importOverwriteWarning": "Import zastępuje reguły dopasowania tej przestrzeni wraz z ich kolejnością. Tego nie da się cofnąć."
+    "importOverwriteWarning": "Import zastępuje reguły dopasowania tej przestrzeni wraz z ich kolejnością. Tego nie da się cofnąć.",
+    "card": {
+      "transfers": "Reguły Przelewów",
+      "transfersHint": "Jak ustalamy, że dwa zapisy to ten sam przelew między twoimi kontami.",
+      "invoices": "Reguły Faktur",
+      "invoicesHint": "Jak ustalamy, która płatność rozlicza którą fakturę.",
+      "recurring": "Reguły Cyklicznych",
+      "recurringHint": "Jak ustalamy, że obciążenie to rachunek, którego już oczekiwałeś."
+    }
   }
 }

@@ -2447,8 +2447,6 @@
     },
     "moveUp": "Deze eerder proberen",
     "moveDown": "Deze later proberen",
-    "matchingTitle": "Afletterregels",
-    "matchingHint": "Hoe we bepalen dat twee regels hetzelfde geld zijn.",
     "pair": {
       "owed": "Wat openstaat",
       "arrived": "Wat er bewoog",
@@ -2478,6 +2476,14 @@
     "invalidImportFile": "Dit is geen bestand met koppelregels",
     "importConfirmTitle": "Koppelregels importeren?",
     "importConfirmDescription": "Bestand {{file}} bevat {{count}} regels.",
-    "importOverwriteWarning": "Importeren vervangt de koppelregels van deze werkruimte, inclusief hun volgorde. Dit kan niet ongedaan worden gemaakt."
+    "importOverwriteWarning": "Importeren vervangt de koppelregels van deze werkruimte, inclusief hun volgorde. Dit kan niet ongedaan worden gemaakt.",
+    "card": {
+      "transfers": "Overboekingsregels",
+      "transfersHint": "Hoe we bepalen dat twee regels één overboeking tussen je eigen rekeningen zijn.",
+      "invoices": "Factuurregels",
+      "invoicesHint": "Hoe we bepalen welke betaling welke factuur voldoet.",
+      "recurring": "Regels voor Terugkerend",
+      "recurringHint": "Hoe we bepalen dat een afschrijving de rekening is die je al verwachtte."
+    }
   }
 }

@@ -2318,7 +2318,7 @@
       "closestDate": "la date la plus proche l'emporte",
       "uniqueCandidate": "un seul candidat convient"
     },
-    "newRule": "Nouvelle règle de rapprochement",
+    "newRule": "Nouvelle règle de correspondance",
     "saved": "Règle enregistrée",
     "reset": "Règle rétablie",
     "restore": "Revenir au réglage par défaut",
@@ -2356,7 +2356,7 @@
       "textExcludes": "ne doit pas contenir…",
       "textHint": "Plusieurs, séparés par des virgules, signifie n'importe lequel.",
       "trigger": "Quand nous cherchons",
-      "triggerHint": "Le rapprochement a lieu à deux moments, et les indices ne sont pas les mêmes.",
+      "triggerHint": "La correspondance a lieu à deux moments, et les indices ne sont pas les mêmes.",
       "amountMatch": "À quel point le montant doit correspondre",
       "amountMatchHint": "Comparé à ce qui reste dû, pas au total d'origine.",
       "amountBandHint": "À propos du paiement lui-même : une taille que vous voulez, ou non, voir traitée par cette règle.",
@@ -2385,7 +2385,7 @@
     },
     "queue": {
       "title": "En attente de vous",
-      "hint": "Rapprochements qui attendent votre confirmation.",
+      "hint": "Correspondances qui attendent votre confirmation.",
       "empty": "Rien à vérifier. Tout a été rapproché tout seul.",
       "aPayment": "Un paiement",
       "maySettle": "règle peut-être {{name}}",
@@ -2415,7 +2415,7 @@
       "what": "Ce qu'est cette règle",
       "which": "Quel argent elle regarde",
       "whichHint": "Laissez tout vide et elle regarde tout l'argent",
-      "match": "Quand cela compte comme un rapprochement",
+      "match": "Quand cela compte comme une correspondance",
       "matchHint": "À quel point le paiement et la promesse doivent correspondre",
       "matchHintTransfer": "À quel point les deux écritures doivent se rapprocher"
     },
@@ -2428,7 +2428,7 @@
       "bothHint": "La règle vaut dans les deux sens."
     },
     "history": {
-      "title": "Ce que le rapprochement a fait",
+      "title": "Ce que la correspondance automatique a fait",
       "hint": "Du plus récent.",
       "byPerson": "par vous",
       "byRules": "par les règles",
@@ -2442,12 +2442,10 @@
         "expired": "Suggestion expirée : {{name}}",
         "unlinked": "Détaché de {{name}}"
       },
-      "empty": "Rien pour l'instant. Cela se remplit à mesure que le rapprochement rattache, demande et reçoit une réponse."
+      "empty": "Rien pour l'instant. Cela se remplit à mesure que la correspondance rattache, demande et reçoit une réponse."
     },
     "moveUp": "Essayer celle-ci plus tôt",
     "moveDown": "Essayer celle-ci plus tard",
-    "matchingTitle": "Règles de rapprochement",
-    "matchingHint": "Comment nous décidons que deux écritures sont le même argent.",
     "pair": {
       "owed": "Ce qui est dû",
       "arrived": "Ce qui a bougé",
@@ -2469,14 +2467,22 @@
       "thisLegAmount": "sur ce côté"
     },
     "discarded": "Supprimées de cet espace :",
-    "noneLeft": "Plus aucune règle de rapprochement dans cet ensemble. Rien n'est rapproché automatiquement ici.",
+    "noneLeft": "Plus aucune règle dans cet ensemble. Rien n'est rattaché automatiquement ici.",
     "confirmDeleteTitle": "Supprimer cette règle ?",
     "confirmDeleteDescription": "« {{name}} » ne décide plus rien. S'il s'agit d'une des nôtres, vous pourrez la rétablir plus tard.",
-    "exported": "Règles de rapprochement téléchargées",
+    "exported": "Règles de correspondance téléchargées",
     "imported": "{{imported}} règles importées ({{skipped}} ignorées)",
-    "invalidImportFile": "Ce n'est pas un fichier de règles de rapprochement",
-    "importConfirmTitle": "Importer les règles de rapprochement ?",
+    "invalidImportFile": "Ce n'est pas un fichier de règles de correspondance",
+    "importConfirmTitle": "Importer les règles de correspondance ?",
     "importConfirmDescription": "Le fichier {{file}} contient {{count}} règles.",
-    "importOverwriteWarning": "L'import remplace les règles de rapprochement de cet espace, y compris leur ordre. C'est irréversible."
+    "importOverwriteWarning": "L'import remplace les règles de cet ensemble, y compris leur ordre. C'est irréversible.",
+    "card": {
+      "transfers": "Règles de Virement",
+      "transfersHint": "Comment nous décidons que deux écritures sont un même virement entre vos comptes.",
+      "invoices": "Règles de Facture",
+      "invoicesHint": "Comment nous décidons quel paiement règle quelle facture.",
+      "recurring": "Règles Récurrentes",
+      "recurringHint": "Comment nous décidons qu’un prélèvement est la facture que vous attendiez."
+    }
   }
 }

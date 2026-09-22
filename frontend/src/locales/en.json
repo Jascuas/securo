@@ -2445,8 +2445,6 @@
     },
     "moveUp": "Try this one earlier",
     "moveDown": "Try this one later",
-    "matchingTitle": "Matching rules",
-    "matchingHint": "How we decide that two records are the same money.",
     "pair": {
       "owed": "What is owed",
       "arrived": "What moved",
@@ -2476,6 +2474,14 @@
     "invalidImportFile": "That is not a matching-rules file",
     "importConfirmTitle": "Import matching rules?",
     "importConfirmDescription": "File {{file}} contains {{count}} rules.",
-    "importOverwriteWarning": "Importing replaces the matching rules this workspace has now, including their order. This cannot be undone."
+    "importOverwriteWarning": "Importing replaces the matching rules this workspace has now, including their order. This cannot be undone.",
+    "card": {
+      "transfers": "Transfer rules",
+      "transfersHint": "How we decide that two records are one transfer between your own accounts.",
+      "invoices": "Invoice rules",
+      "invoicesHint": "How we decide which payment settles which invoice.",
+      "recurring": "Recurring rules",
+      "recurringHint": "How we decide that a charge is the bill you were already expecting."
+    }
   }
 }
