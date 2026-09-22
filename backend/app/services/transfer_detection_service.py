@@ -273,7 +273,13 @@ async def detect_transfer_pairs(
                 found.append(other)
         return found
 
-    new_ids = set(candidate_ids) if candidate_ids else None
+    # **An empty list is not the same as no list.** `None` means "look at
+    # everything"; `[]` means "a sync just ran and brought nothing new",
+    # which is the one case where there is certainly nothing to do.
+    # Collapsing the two sent a quiet sync off to reconsider the whole
+    # workspace and pair two rows that had both been sitting there for
+    # months, which is exactly what restricting to new rows prevents.
+    new_ids = None if candidate_ids is None else set(candidate_ids)
 
     # Which rows to ask about. Everything when this is a full run;
     # otherwise the new rows plus whatever could contest them, because a

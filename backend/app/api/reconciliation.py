@@ -465,6 +465,43 @@ async def accept_suggestion(
     return await _with_label(session, row)
 
 
+#: What must still be true of two rows before they may be bound as one
+#: transfer, whatever rule proposed them.
+#:
+#: The first four are the definition: money crossing between two accounts
+#: moves the opposite way on each side, in one currency. They are checked
+#: rather than assumed because a transaction stays editable while its
+#: suggestion sits in the queue.
+#:
+#: The amounts are checked against what was recorded when the question
+#: was raised, not against each other. A rule may well have matched an
+#: approximate pair, so "are they equal" is the wrong question; "are they
+#: what the person is being shown" is the right one.
+def _transfer_still_holds(moved: Transaction, counterpart: Transaction, row) -> bool:
+    if moved.account_id == counterpart.account_id:
+        return False
+    if moved.type == counterpart.type:
+        return False
+    if moved.currency != counterpart.currency:
+        return False
+
+    scores = row.scores or {}
+    for leg, key in ((moved, "amount_moved"), (counterpart, "amount_expected")):
+        recorded = scores.get(key)
+        if recorded is None:
+            # An older row from before the breakdown carried these. The
+            # definitional checks above still ran; there is nothing more
+            # to compare against, and refusing every one of them would be
+            # answering uncertainty with a dead queue.
+            continue
+        try:
+            if abs(Decimal(leg.amount)) != Decimal(str(recorded)):
+                return False
+        except (ArithmeticError, ValueError):
+            return False
+    return True
+
+
 async def _settle(
     session: AsyncSession, ctx: WorkspaceContext, row
 ) -> None:
@@ -473,14 +510,29 @@ async def _settle(
         # The two legs of a transfer. Nothing is allocated and nothing is
         # replaced: they are both real rows that stay, and agreeing means
         # they learn they are halves of one movement.
-        moved = await session.get(Transaction, row.transaction_id)
-        counterpart = await session.get(Transaction, row.expectation_id)
-        if (
-            moved is None
-            or counterpart is None
-            or moved.workspace_id != ctx.workspace.id
-            or counterpart.workspace_id != ctx.workspace.id
-        ):
+        #
+        # **Both rows are locked, not just the suggestion.** The lock on
+        # the suggestion guards this row and no other, and one transaction
+        # can sit in two pending questions at once: the ambiguous case
+        # that raises them puts the same credit against two debits, side
+        # by side in the queue with a button each. Two accepts a moment
+        # apart would both read it as unpaired, both write, and leave the
+        # loser's other leg carrying a pair id with nothing on the far
+        # end. Ordered by id so two requests cannot take the locks in
+        # opposite orders and deadlock.
+        locked = await session.execute(
+            select(Transaction)
+            .where(
+                Transaction.id.in_([row.transaction_id, row.expectation_id]),
+                Transaction.workspace_id == ctx.workspace.id,
+            )
+            .order_by(Transaction.id)
+            .with_for_update(of=Transaction)
+        )
+        by_id = {leg.id: leg for leg in locked.scalars().all()}
+        moved = by_id.get(row.transaction_id)
+        counterpart = by_id.get(row.expectation_id)
+        if moved is None or counterpart is None:
             raise invoice_service.InvoiceError(
                 "transaction_missing", "One of the transactions is no longer there"
             )
@@ -491,6 +543,18 @@ async def _settle(
             # link somebody may have chosen deliberately.
             raise invoice_service.InvoiceError(
                 "already_paired", "One of these is already part of a transfer"
+            )
+        if not _transfer_still_holds(moved, counterpart, row):
+            # **The rows are not the ones the question was about.** A
+            # transaction stays editable while its suggestion waits, so
+            # the amount, the account, the direction or the currency can
+            # all have moved since we asked. Accepting anyway would bind
+            # two rows on the strength of an answer to a different
+            # question, and a paired row leaves income and expense, so
+            # the damage is a total quietly changing.
+            raise invoice_service.InvoiceError(
+                "suggestion_stale",
+                "These transactions changed since we asked. Check them again.",
             )
         pair_id = uuid.uuid4()
         for leg in legs:

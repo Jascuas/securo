@@ -511,3 +511,81 @@ def test_what_ships_enabled_is_the_old_behaviour_and_nothing_else():
         assert "account_name_in_description" not in strategy["when"]
         assert "description_similarity" not in strategy["when"]
         assert strategy["when"].get("amount", {}).get("match", "exact") == "exact"
+
+
+@pytest.mark.asyncio
+async def test_a_sync_that_brought_nothing_new_pairs_nothing(
+    session: AsyncSession, test_user, ws
+):
+    """`[]` is not `None`.
+
+    One means "a sync just ran and found nothing", the other means "look
+    at everything". Collapsing them sent a quiet sync off to reconsider
+    the whole workspace and pair two rows that had both been sitting
+    there for months.
+    """
+    source = await _account(session, test_user.id, ws.id, "Old A")
+    target = await _account(session, test_user.id, ws.id, "Old B")
+    debit = await _txn(
+        session, test_user.id, ws.id, source,
+        amount="75.00", kind="debit", when=TODAY,
+    )
+    credit = await _txn(
+        session, test_user.id, ws.id, target,
+        amount="75.00", kind="credit", when=TODAY,
+    )
+
+    assert await detect_transfer_pairs(session, ws.id, candidate_ids=[]) == 0
+    await session.commit()
+    for row in (debit, credit):
+        await session.refresh(row)
+        assert row.transfer_pair_id is None
+
+    # And with no list at all it is a full run, which does pair them.
+    assert await detect_transfer_pairs(session, ws.id) == 1
+
+
+@pytest.mark.asyncio
+async def test_accepting_a_question_about_rows_that_changed_is_refused(
+    client: AsyncClient, auth_headers, session: AsyncSession, test_user, test_workspace
+):
+    """A transaction stays editable while its suggestion waits.
+
+    Accepting anyway would bind two rows on the strength of an answer to
+    a different question, and a paired row leaves income and expense, so
+    the damage is a total quietly changing.
+    """
+    ws = test_workspace
+    source = await _account(session, test_user.id, ws.id, "Stale A")
+    target = await _account(session, test_user.id, ws.id, "Stale B")
+    await _txn(
+        session, test_user.id, ws.id, source,
+        amount="300.00", kind="debit", when=TODAY, description="VIREMENT 1",
+    )
+    await _txn(
+        session, test_user.id, ws.id, source,
+        amount="300.00", kind="debit", when=TODAY, description="VIREMENT 2",
+    )
+    arriving = await _txn(
+        session, test_user.id, ws.id, target,
+        amount="300.00", kind="credit", when=TODAY, description="RECU",
+    )
+
+    # Ambiguous, so it becomes a question rather than a link.
+    assert await detect_transfer_pairs(session, ws.id) == 0
+    await session.commit()
+    queue = await _pending(session, ws.id)
+    assert queue, "expected the ambiguous pair to be queued"
+
+    # Somebody corrects the amount before answering.
+    arriving.amount = Decimal("999.00")
+    await session.commit()
+
+    resp = await client.post(
+        f"/api/reconciliation/suggestions/{queue[0].id}/accept", headers=auth_headers
+    )
+    assert resp.status_code == 400, resp.text
+    assert resp.json()["detail"]["code"] == "suggestion_stale"
+
+    await session.refresh(arriving)
+    assert arriving.transfer_pair_id is None
