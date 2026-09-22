@@ -2467,7 +2467,7 @@
       "transferSignals": "Co czyni z tego przelew",
       "transferSignalsHint": "Obie strony zawsze są na różnych kontach. Tutaj określasz, co jeszcze musi się zgadzać, zanim zaufamy tej parze.",
       "accountTypes": "Tylko gdy jedna ze stron jest jedną z tych",
-      "amountMatchHintTransfer": "Porównywane z drugą stroną, w tej samej walucie. Przelew między walutami robi się narzędziem przelewu, które pyta o obie kwoty.",
+      "amountMatchHintTransfer": "Porównywane z drugą stroną, w tej samej walucie. Różne waluty nigdy nie łączą się same; nadal możesz powiązać obie strony ręcznie.",
       "windowHintTransfer": "Pieniądze rzadko docierają tego samego dnia, w którym wyszły. Obie strony liczą się od drugiego zapisu, więc dwa dni z każdej strony obejmują weekend."
     },
     "counterparty": {

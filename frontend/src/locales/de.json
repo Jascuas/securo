@@ -2362,7 +2362,7 @@
       "transferSignals": "Was es zu einer Überweisung macht",
       "transferSignalsHint": "Die beiden Seiten liegen immer auf verschiedenen Konten. Hier legen Sie fest, was sonst noch zutreffen muss, bevor dem Paar vertraut wird.",
       "accountTypes": "Nur wenn eine Seite eines davon ist",
-      "amountMatchHintTransfer": "Verglichen mit der anderen Seite, in derselben Währung. Eine Überweisung zwischen Währungen wird mit dem Überweisungswerkzeug gemacht, das beide Beträge abfragt.",
+      "amountMatchHintTransfer": "Verglichen mit der anderen Seite, in derselben Währung. Verschiedene Währungen werden nie von allein gepaart; Sie können die beiden Seiten weiterhin von Hand verknüpfen.",
       "windowHintTransfer": "Geld kommt selten am selben Tag an, an dem es abging. Beide Seiten zählen ab dem anderen Eintrag, zwei Tage je Seite decken also ein Wochenende ab."
     },
     "counterparty": {

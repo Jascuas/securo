@@ -2362,7 +2362,7 @@
       "transferSignals": "Ce qui en fait un virement",
       "transferSignalsHint": "Les deux côtés sont toujours sur des comptes différents. Ici vous dites quoi d'autre doit être vrai avant de faire confiance à la paire.",
       "accountTypes": "Seulement quand un des côtés est l'un de ceux-ci",
-      "amountMatchHintTransfer": "Comparé à l'autre côté, dans la même devise. Un virement entre devises se fait avec l'outil de virement, qui demande les deux montants.",
+      "amountMatchHintTransfer": "Comparé à l'autre côté, dans la même devise. Des devises différentes ne s'apparient jamais seules ; vous pouvez toujours relier les deux côtés à la main.",
       "windowHintTransfer": "L'argent arrive rarement le jour où il est parti. Les deux côtés se comptent depuis l'autre écriture, donc deux jours de chaque côté couvrent un week-end."
     },
     "counterparty": {

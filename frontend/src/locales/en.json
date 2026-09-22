@@ -2361,7 +2361,7 @@
       "transferSignals": "What makes it a transfer",
       "transferSignalsHint": "The two legs are always on different accounts. These say what else has to be true before the pair is trusted.",
       "accountTypes": "Only when one side is one of these",
-      "amountMatchHintTransfer": "Compared against the other leg, in the same currency. A transfer between currencies is made with the transfer tool, which asks for both amounts.",
+      "amountMatchHintTransfer": "Compared against the other leg, in the same currency. Different currencies never pair on their own; you can still link the two legs by hand.",
       "windowHintTransfer": "Money rarely lands on the day it left. Both sides are counted from the other record, so two days either way covers a weekend."
     },
     "counterparty": {

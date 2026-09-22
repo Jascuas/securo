@@ -2501,7 +2501,7 @@
       "transferSignals": "Čo z toho robí prevod",
       "transferSignalsHint": "Obe strany sú vždy na rôznych účtoch. Tu určíte, čo ešte musí platiť, kým páru dôverujeme.",
       "accountTypes": "Len keď je jedna strana jednou z týchto",
-      "amountMatchHintTransfer": "Porovnáva sa s druhou stranou, v tej istej mene. Prevod medzi menami sa robí nástrojom prevodu, ktorý sa pýta na obe sumy.",
+      "amountMatchHintTransfer": "Porovnáva sa s druhou stranou, v tej istej mene. Rôzne meny sa nikdy nespárujú samy; obe strany stále môžete prepojiť ručne.",
       "windowHintTransfer": "Peniaze málokedy dorazia v deň, keď odišli. Obe strany sa počítajú od druhého záznamu, takže dva dni na každú stranu pokryjú víkend."
     },
     "counterparty": {

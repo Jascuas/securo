@@ -2362,7 +2362,7 @@
       "transferSignals": "Qué la convierte en una transferencia",
       "transferSignalsHint": "Los dos lados siempre están en cuentas distintas. Aquí dices qué más debe cumplirse antes de confiar en el par.",
       "accountTypes": "Solo cuando uno de los lados sea uno de estos",
-      "amountMatchHintTransfer": "Comparado con el otro lado, en la misma moneda. Una transferencia entre monedas se hace con la herramienta de transferencia, que pide ambos importes.",
+      "amountMatchHintTransfer": "Comparado con el otro lado, en la misma moneda. Monedas distintas nunca se emparejan solas; aún puedes vincular los dos lados a mano.",
       "windowHintTransfer": "El dinero rara vez llega el mismo día que salió. Los dos lados se cuentan desde el otro registro, así que dos días a cada lado cubren un fin de semana."
     },
     "counterparty": {

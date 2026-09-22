@@ -2362,7 +2362,7 @@
       "transferSignals": "Cosa la rende un trasferimento",
       "transferSignalsHint": "I due lati sono sempre su conti diversi. Qui dici cos'altro deve essere vero prima di fidarti della coppia.",
       "accountTypes": "Solo quando un lato è uno di questi",
-      "amountMatchHintTransfer": "Confrontato con l'altro lato, nella stessa valuta. Un trasferimento tra valute si fa con lo strumento di trasferimento, che chiede entrambi gli importi.",
+      "amountMatchHintTransfer": "Confrontato con l'altro lato, nella stessa valuta. Valute diverse non si abbinano mai da sole; puoi comunque collegare i due lati a mano.",
       "windowHintTransfer": "Il denaro raramente arriva il giorno in cui è partito. I due lati si contano dall'altro movimento, quindi due giorni per parte coprono un fine settimana."
     },
     "counterparty": {

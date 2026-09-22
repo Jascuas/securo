@@ -2363,7 +2363,7 @@
       "transferSignals": "Wat het een overboeking maakt",
       "transferSignalsHint": "De twee kanten staan altijd op verschillende rekeningen. Hier geef je aan wat er verder waar moet zijn voordat het paar wordt vertrouwd.",
       "accountTypes": "Alleen als een kant een van deze is",
-      "amountMatchHintTransfer": "Vergeleken met de andere kant, in dezelfde valuta. Een overboeking tussen valuta doe je met het overboekingsscherm, dat beide bedragen vraagt.",
+      "amountMatchHintTransfer": "Vergeleken met de andere kant, in dezelfde valuta. Verschillende valuta koppelen nooit vanzelf; je kunt de twee kanten nog steeds handmatig verbinden.",
       "windowHintTransfer": "Geld komt zelden aan op de dag dat het vertrok. Beide kanten tellen vanaf de andere regel, dus twee dagen per kant dekt een weekend."
     },
     "counterparty": {
