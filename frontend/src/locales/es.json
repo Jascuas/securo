@@ -2280,7 +2280,6 @@
       "unknown": "Regla",
       "partPayment": "Persona conocida, parte del importe",
       "severalInvoices": "Persona conocida, varias facturas a la vez",
-      "cardLegNeedsConfirming": "Con tarjeta de crédito",
       "destinationNamed": "La descripción nombra la otra cuenta",
       "exactAmountNearby": "Importe exacto, fecha cercana",
       "closeAmountWiderWindow": "Importe aproximado, ventana más amplia"
@@ -2395,7 +2394,12 @@
       "linked": "Vinculado",
       "declined": "Descartado: no volveremos a preguntar",
       "covers": "cubre",
-      "mayPairWith": "puede ser la otra mitad de {{name}}"
+      "mayPairWith": "puede ser la otra mitad de {{name}}",
+      "kind": {
+        "transaction": "Transferencia",
+        "invoice": "Factura",
+        "recurring": "Recurrente"
+      }
     },
     "evidence": {
       "amountExact": "el importe coincide exactamente",

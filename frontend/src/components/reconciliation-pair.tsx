@@ -318,18 +318,31 @@ export function ReconciliationPair({
           </p>
           {transaction ? (
             <div className="space-y-0.5">
+              {/* For a transfer both columns lead with the account, so the
+                  two sides read as one comparison. Leading with the
+                  description on this side and the account on the other
+                  asked the reader to hold two different shapes in their
+                  head and work out which field to compare with which. */}
               <p className="text-sm font-medium text-foreground truncate">
-                {transaction.description}
+                {isTransfer ? (accountName ?? transaction.description) : transaction.description}
               </p>
               <Facts
-                items={[
-                  showDate(transaction.date),
-                  accountName,
-                  // `payee_name` is the resolved one; `payee` is the raw
-                  // string the bank sent, worth falling back to when
-                  // nothing has been mapped yet.
-                  transaction.payee_name || transaction.payee,
-                ]}
+                items={
+                  isTransfer
+                    ? [
+                        showDate(transaction.date),
+                        money(transaction.amount, transaction.currency),
+                        transaction.description,
+                      ]
+                    : [
+                        showDate(transaction.date),
+                        accountName,
+                        // `payee_name` is the resolved one; `payee` is the
+                        // raw string the bank sent, worth falling back to
+                        // when nothing has been mapped yet.
+                        transaction.payee_name || transaction.payee,
+                      ]
+                }
               />
             </div>
           ) : (

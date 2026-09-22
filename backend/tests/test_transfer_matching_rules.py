@@ -112,16 +112,11 @@ def test_a_generic_account_name_names_nothing():
 # ---------------------------------------------------------------------------
 # #973: the wrong counterpart
 # ---------------------------------------------------------------------------
-@pytest.mark.asyncio
-async def test_the_description_decides_between_two_same_day_transfers(
-    session: AsyncSession, test_user, ws
-):
-    """Two transfers of the same amount leave one account on one day.
+async def _same_day_pair(session: AsyncSession, test_user, ws):
+    """The reported shape: two transfers of one amount on one day.
 
-    The old detector paired the incoming leg with whichever debit the
-    database returned first, and left the one that named its destination
-    unpaired. Nothing in the UI looked wrong; only the descriptions
-    contradicted the link.
+    One names where it went, the other names somewhere else, and the
+    incoming leg lands two days later.
     """
     bnp = await _account(session, test_user.id, ws.id, "BNP checking")
     fortuneo = await _account(session, test_user.id, ws.id, "Fortuneo")
@@ -142,6 +137,49 @@ async def test_the_description_decides_between_two_same_day_transfers(
         amount="100.00", kind="credit", when=TODAY + timedelta(days=2),
         description="Transfer from BNP",
     )
+    return to_tr, to_fortuneo, arrival
+
+
+@pytest.mark.asyncio
+async def test_by_default_the_same_day_pair_is_asked_about_not_guessed(
+    session: AsyncSession, test_user, ws
+):
+    """What ships: nothing is linked, and the question is raised.
+
+    The old detector paired the incoming leg with whichever debit the
+    database returned first and left the other alone. Reading the
+    descriptions would resolve it, but that is a guess about what a bank
+    chose to print, so it is not what a default does. Refusing to guess
+    is, and it is already the whole of the reported harm undone.
+    """
+    to_tr, to_fortuneo, arrival = await _same_day_pair(session, test_user, ws)
+
+    assert await detect_transfer_pairs(session, ws.id) == 0
+    await session.commit()
+    for row in (to_tr, to_fortuneo, arrival):
+        await session.refresh(row)
+        assert row.transfer_pair_id is None
+
+    assert await _pending(session, ws.id) != []
+
+
+@pytest.mark.asyncio
+async def test_turning_the_description_rule_on_resolves_the_same_day_pair(
+    session: AsyncSession, test_user, ws
+):
+    """And what one click buys.
+
+    `To FORTUNEO ACCOUNT` names the account the money landed in; the
+    other line names somewhere else. That separates them, and the pair
+    both sides agree on gets linked.
+    """
+    await rule_service.upsert_override(
+        session, ws.id, test_user.id, NODE,
+        "destination_named_in_description", {"enabled": True},
+    )
+    await session.commit()
+
+    to_tr, to_fortuneo, arrival = await _same_day_pair(session, test_user, ws)
 
     assert await detect_transfer_pairs(session, ws.id) == 1
     await session.commit()
@@ -197,12 +235,17 @@ async def test_two_indistinguishable_legs_are_asked_about_rather_than_guessed(
 # #648: the reimbursement that looked like a transfer
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_a_card_leg_is_offered_rather_than_linked(
+async def test_a_card_purchase_is_not_a_transfer_and_is_not_even_asked_about(
     session: AsyncSession, test_user, ws
 ):
-    """A purchase and an unrelated refund of the same value are not a
-    transfer, and linking them removed the purchase from the card's bill
-    and the money from income at once, with nothing to review."""
+    """A bar tab and an unrelated reimbursement of the same value.
+
+    The old code linked them, and the purchase silently left the card's
+    bill while the money left income. Offering the pair for confirmation
+    instead would still be wrong: that money went to the bar, so there is
+    no second leg anywhere, and a question whose answer is always no is
+    how a queue stops being read.
+    """
     card = await _account(session, test_user.id, ws.id, "Card", kind="credit_card")
     checking = await _account(session, test_user.id, ws.id, "Checking")
 
@@ -223,8 +266,41 @@ async def test_a_card_leg_is_offered_rather_than_linked(
     assert purchase.transfer_pair_id is None
     assert refund.transfer_pair_id is None
 
-    queue = await _pending(session, ws.id)
-    assert [row.strategy_id for row in queue] == ["card_leg_needs_confirming"]
+    # Not linked, and not queued either. Nothing happened, which is the
+    # correct amount of things to happen.
+    assert await _pending(session, ws.id) == []
+
+
+@pytest.mark.asyncio
+async def test_paying_the_card_bill_is_a_transfer_and_still_links(
+    session: AsyncSession, test_user, ws
+):
+    """The direction that is real, and the reason the exclusion is not
+    "anything touching a card".
+
+    Money leaves the current account and lands **on** the card, reducing
+    what is owed. Both ends are things you own, so it is a transfer in
+    the plainest sense and people have always wanted it paired.
+    """
+    card = await _account(session, test_user.id, ws.id, "Card", kind="credit_card")
+    checking = await _account(session, test_user.id, ws.id, "Checking")
+
+    paid = await _txn(
+        session, test_user.id, ws.id, checking,
+        amount="1240.00", kind="debit", when=TODAY, description="PAGAMENTO FATURA",
+    )
+    received = await _txn(
+        session, test_user.id, ws.id, card,
+        amount="1240.00", kind="credit", when=TODAY + timedelta(days=1),
+        description="PAGAMENTO RECEBIDO",
+    )
+
+    assert await detect_transfer_pairs(session, ws.id) == 1
+    await session.commit()
+    await session.refresh(paid)
+    await session.refresh(received)
+    assert paid.transfer_pair_id is not None
+    assert paid.transfer_pair_id == received.transfer_pair_id
 
 
 # ---------------------------------------------------------------------------
@@ -398,3 +474,40 @@ async def test_importing_on_one_card_cannot_rewrite_another_set(
     if other in by_node:
         # Untouched: the file asked, the scope refused.
         assert any(rule["enabled"] for rule in by_node[other]["rules"])
+
+
+def test_what_ships_enabled_is_the_old_behaviour_and_nothing_else():
+    """The rule that decides what may be a default.
+
+    A default is not a suggestion: it is what happens to people who never
+    open the page. So the enabled set has to be defensible without
+    knowing anything about the reader's bank or country, which leaves
+    exactly what already ran plus the definition of a transfer. Every
+    heuristic beyond that ships visible and off.
+
+    Written as a test rather than a comment because the pressure is
+    always toward switching a good idea on, and the cost of that lands
+    on people who never asked.
+    """
+    node = reconciliation_policy.MATCH_TRANSFER
+    on = [s for s in node["strategies"] if s.get("enabled", True)]
+
+    assert [s["id"] for s in on] == ["exact_amount_nearby"]
+
+    when = on[0]["when"]
+    assert on[0]["outcome"] == "link"
+    assert when["different_account"] is True
+    assert when["amount"] == {"match": "exact"}
+    # The window the old detector used, to the day.
+    assert when["date"] == {"before_days": 2, "after_days": 2}
+    # Nearest first, as it always did; a question when nothing separates
+    # them, which it never did.
+    assert when["tie_break"] == "closest_date"
+    assert when["unique_candidate"] is True
+
+    # No enabled rule reads text or accepts an approximate amount. Those
+    # are opinions about statements, and they wait to be asked for.
+    for strategy in on:
+        assert "account_name_in_description" not in strategy["when"]
+        assert "description_similarity" not in strategy["when"]
+        assert strategy["when"].get("amount", {}).get("match", "exact") == "exact"

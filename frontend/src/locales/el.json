@@ -2279,7 +2279,6 @@
       "unknown": "Άγνωστος κανόνας",
       "partPayment": "Γνωστό πρόσωπο, μέρος του ποσού",
       "severalInvoices": "Γνωστό πρόσωπο, πολλά τιμολόγια μαζί",
-      "cardLegNeedsConfirming": "Με πιστωτική κάρτα",
       "destinationNamed": "Η περιγραφή αναφέρει τον άλλο λογαριασμό",
       "exactAmountNearby": "Ακριβές ποσό, κοντινή ημερομηνία",
       "closeAmountWiderWindow": "Κοντινό ποσό, ευρύτερο παράθυρο"
@@ -2394,7 +2393,12 @@
       "linked": "Συνδέθηκε",
       "declined": "Απορρίφθηκε. Δεν θα ρωτήσουμε ξανά",
       "covers": "καλύπτει",
-      "mayPairWith": "μπορεί να είναι το άλλο μισό του {{name}}"
+      "mayPairWith": "μπορεί να είναι το άλλο μισό του {{name}}",
+      "kind": {
+        "transaction": "Μεταφορά",
+        "invoice": "Τιμολόγιο",
+        "recurring": "Επαναλαμβανόμενο"
+      }
     },
     "evidence": {
       "amountExact": "ακριβές ποσό",

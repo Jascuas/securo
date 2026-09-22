@@ -2280,7 +2280,6 @@
       "unknown": "Règle",
       "partPayment": "Personne connue, une partie du montant",
       "severalInvoices": "Personne connue, plusieurs factures à la fois",
-      "cardLegNeedsConfirming": "Avec une carte de crédit",
       "destinationNamed": "La description nomme l'autre compte",
       "exactAmountNearby": "Montant exact, date proche",
       "closeAmountWiderWindow": "Montant proche, fenêtre élargie"
@@ -2395,7 +2394,12 @@
       "linked": "Rattaché",
       "declined": "Écarté. Nous ne redemanderons pas",
       "covers": "couvre",
-      "mayPairWith": "est peut-être l'autre moitié de {{name}}"
+      "mayPairWith": "est peut-être l'autre moitié de {{name}}",
+      "kind": {
+        "transaction": "Virement",
+        "invoice": "Facture",
+        "recurring": "Récurrent"
+      }
     },
     "evidence": {
       "amountExact": "le montant correspond exactement",

@@ -2281,7 +2281,6 @@
       "unknown": "Regel",
       "partPayment": "Bekende persoon, deel van het bedrag",
       "severalInvoices": "Bekende persoon, meerdere facturen tegelijk",
-      "cardLegNeedsConfirming": "Met een creditcard",
       "destinationNamed": "De omschrijving noemt de andere rekening",
       "exactAmountNearby": "Exact bedrag, datum dichtbij",
       "closeAmountWiderWindow": "Bedrag in de buurt, ruimer venster"
@@ -2396,7 +2395,12 @@
       "linked": "Gekoppeld",
       "declined": "Afgewezen. We vragen het niet nog eens",
       "covers": "dekt",
-      "mayPairWith": "kan de andere helft van {{name}} zijn"
+      "mayPairWith": "kan de andere helft van {{name}} zijn",
+      "kind": {
+        "transaction": "Overboeking",
+        "invoice": "Factuur",
+        "recurring": "Terugkerend"
+      }
     },
     "evidence": {
       "amountExact": "bedrag klopt precies",

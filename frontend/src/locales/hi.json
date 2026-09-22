@@ -2279,7 +2279,6 @@
       "unknown": "नियम",
       "partPayment": "ज्ञात व्यक्ति, राशि का एक हिस्सा",
       "severalInvoices": "ज्ञात व्यक्ति, एक साथ कई इनवॉइस",
-      "cardLegNeedsConfirming": "क्रेडिट कार्ड शामिल होने पर",
       "destinationNamed": "विवरण दूसरे खाते का नाम बताता है",
       "exactAmountNearby": "सटीक राशि, नज़दीकी तारीख",
       "closeAmountWiderWindow": "मिलती-जुलती राशि, चौड़ी अवधि"
@@ -2394,7 +2393,12 @@
       "linked": "जोड़ा गया",
       "declined": "खारिज किया गया। हम दोबारा नहीं पूछेंगे",
       "covers": "शामिल करता है",
-      "mayPairWith": "{{name}} का दूसरा हिस्सा हो सकता है"
+      "mayPairWith": "{{name}} का दूसरा हिस्सा हो सकता है",
+      "kind": {
+        "transaction": "स्थानांतरण",
+        "invoice": "चालान",
+        "recurring": "आवर्ती"
+      }
     },
     "evidence": {
       "amountExact": "राशि बिल्कुल मेल खाती है",

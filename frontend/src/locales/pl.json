@@ -2385,7 +2385,6 @@
       "unknown": "Reguła",
       "partPayment": "Znana osoba, część kwoty",
       "severalInvoices": "Znana osoba, kilka faktur naraz",
-      "cardLegNeedsConfirming": "Z kartą kredytową",
       "destinationNamed": "Opis wskazuje drugie konto",
       "exactAmountNearby": "Dokładna kwota, bliska data",
       "closeAmountWiderWindow": "Zbliżona kwota, szersze okno"
@@ -2500,7 +2499,12 @@
       "linked": "Powiązano",
       "declined": "Odrzucono. Nie zapytamy ponownie",
       "covers": "pokrywa",
-      "mayPairWith": "może być drugą połową {{name}}"
+      "mayPairWith": "może być drugą połową {{name}}",
+      "kind": {
+        "transaction": "Przelew",
+        "invoice": "Faktura",
+        "recurring": "Cykliczne"
+      }
     },
     "evidence": {
       "amountExact": "kwota zgadza się dokładnie",

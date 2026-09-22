@@ -2280,7 +2280,6 @@
       "unknown": "Regola",
       "partPayment": "Persona conosciuta, parte dell'importo",
       "severalInvoices": "Persona conosciuta, più fatture insieme",
-      "cardLegNeedsConfirming": "Con carta di credito",
       "destinationNamed": "La descrizione nomina l'altro conto",
       "exactAmountNearby": "Importo esatto, data vicina",
       "closeAmountWiderWindow": "Importo simile, finestra più ampia"
@@ -2395,7 +2394,12 @@
       "linked": "Collegato",
       "declined": "Scartato: non lo chiederemo più",
       "covers": "copre",
-      "mayPairWith": "può essere l'altra metà di {{name}}"
+      "mayPairWith": "può essere l'altra metà di {{name}}",
+      "kind": {
+        "transaction": "Trasferimento",
+        "invoice": "Fattura",
+        "recurring": "Ricorrente"
+      }
     },
     "evidence": {
       "amountExact": "l'importo corrisponde esattamente",

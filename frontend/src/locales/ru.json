@@ -2292,7 +2292,6 @@
       "unknown": "Правило",
       "partPayment": "Известный человек, часть суммы",
       "severalInvoices": "Известный человек, несколько счетов сразу",
-      "cardLegNeedsConfirming": "С участием кредитной карты",
       "destinationNamed": "Описание называет другой счёт",
       "exactAmountNearby": "Точная сумма, близкая дата",
       "closeAmountWiderWindow": "Близкая сумма, более широкое окно"
@@ -2407,7 +2406,12 @@
       "linked": "Связано",
       "declined": "Отклонено. Больше не спросим",
       "covers": "покрывает",
-      "mayPairWith": "возможно, это вторая половина {{name}}"
+      "mayPairWith": "возможно, это вторая половина {{name}}",
+      "kind": {
+        "transaction": "Перевод",
+        "invoice": "Счёт",
+        "recurring": "Повторяющийся"
+      }
     },
     "evidence": {
       "amountExact": "сумма совпадает точно",

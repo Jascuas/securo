@@ -2279,7 +2279,6 @@
       "unknown": "Rule",
       "partPayment": "Known person, part of the amount",
       "severalInvoices": "Known person, several invoices at once",
-      "cardLegNeedsConfirming": "Involving a credit card",
       "destinationNamed": "The description names the other account",
       "exactAmountNearby": "Exact amount, nearby date",
       "closeAmountWiderWindow": "Close amount, wider window"
@@ -2394,7 +2393,12 @@
       "linked": "Linked",
       "declined": "Dismissed. We will not ask again",
       "covers": "covers",
-      "mayPairWith": "may be the other half of {{name}}"
+      "mayPairWith": "may be the other half of {{name}}",
+      "kind": {
+        "transaction": "Transfer",
+        "invoice": "Invoice",
+        "recurring": "Recurring"
+      }
     },
     "evidence": {
       "amountExact": "amount matches exactly",

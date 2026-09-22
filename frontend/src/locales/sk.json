@@ -2419,7 +2419,6 @@
       "unknown": "Pravidlo",
       "partPayment": "Známa osoba, časť sumy",
       "severalInvoices": "Známa osoba, viac faktúr naraz",
-      "cardLegNeedsConfirming": "S kreditnou kartou",
       "destinationNamed": "Popis uvádza druhý účet",
       "exactAmountNearby": "Presná suma, blízky dátum",
       "closeAmountWiderWindow": "Podobná suma, širšie okno"
@@ -2534,7 +2533,12 @@
       "linked": "Spárované",
       "declined": "Zamietnuté. Už sa nespýtame",
       "covers": "pokrýva",
-      "mayPairWith": "môže byť druhou polovicou {{name}}"
+      "mayPairWith": "môže byť druhou polovicou {{name}}",
+      "kind": {
+        "transaction": "Prevod",
+        "invoice": "Faktúra",
+        "recurring": "Opakované"
+      }
     },
     "evidence": {
       "amountExact": "suma sedí presne",

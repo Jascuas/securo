@@ -2280,7 +2280,6 @@
       "unknown": "Regel",
       "partPayment": "Bekannte Person, Teil des Betrags",
       "severalInvoices": "Bekannte Person, mehrere Rechnungen auf einmal",
-      "cardLegNeedsConfirming": "Mit Kreditkarte",
       "destinationNamed": "Die Beschreibung nennt das andere Konto",
       "exactAmountNearby": "Exakter Betrag, naher Termin",
       "closeAmountWiderWindow": "Ähnlicher Betrag, größeres Fenster"
@@ -2395,7 +2394,12 @@
       "linked": "Verknüpft",
       "declined": "Verworfen. Wir fragen nicht noch einmal",
       "covers": "deckt",
-      "mayPairWith": "könnte die andere Hälfte von {{name}} sein"
+      "mayPairWith": "könnte die andere Hälfte von {{name}} sein",
+      "kind": {
+        "transaction": "Überweisung",
+        "invoice": "Rechnung",
+        "recurring": "Wiederkehrend"
+      }
     },
     "evidence": {
       "amountExact": "Betrag stimmt genau",

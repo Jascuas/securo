@@ -2279,7 +2279,6 @@
       "unknown": "ルール",
       "partPayment": "既知の相手、金額の一部",
       "severalInvoices": "既知の相手、複数の請求書をまとめて",
-      "cardLegNeedsConfirming": "クレジットカードが関わる場合",
       "destinationNamed": "摘要がもう一方の口座名を含む",
       "exactAmountNearby": "金額が一致し、日付が近い",
       "closeAmountWiderWindow": "金額が近く、期間が広い"
@@ -2394,7 +2393,12 @@
       "linked": "結びつけました",
       "declined": "却下しました。二度と確認しません",
       "covers": "がカバーする範囲",
-      "mayPairWith": "{{name}} のもう一方かもしれません"
+      "mayPairWith": "{{name}} のもう一方かもしれません",
+      "kind": {
+        "transaction": "振替",
+        "invoice": "請求書",
+        "recurring": "定期"
+      }
     },
     "evidence": {
       "amountExact": "金額が完全に一致",

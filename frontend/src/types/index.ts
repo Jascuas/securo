@@ -1518,6 +1518,10 @@ export interface ReconciliationSuggestion {
     currency?: string | null
     date: string
     type: string
+    /** Which account the money moved on. With transfers in the queue the
+     *  question is about accounts, so a row naming only the other side
+     *  leaves the reader to work out which of theirs this one is. */
+    account_id?: string | null
   } | null
 }
 

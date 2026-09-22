@@ -2292,7 +2292,6 @@
       "unknown": "Правило",
       "partPayment": "Відома особа, частина суми",
       "severalInvoices": "Відома особа, кілька рахунків одразу",
-      "cardLegNeedsConfirming": "За участю кредитної картки",
       "destinationNamed": "Опис називає інший рахунок",
       "exactAmountNearby": "Точна сума, близька дата",
       "closeAmountWiderWindow": "Близька сума, ширше вікно"
@@ -2407,7 +2406,12 @@
       "linked": "Зв’язано",
       "declined": "Відхилено. Більше не запитаємо",
       "covers": "покриває",
-      "mayPairWith": "можливо, це друга половина {{name}}"
+      "mayPairWith": "можливо, це друга половина {{name}}",
+      "kind": {
+        "transaction": "Переказ",
+        "invoice": "Рахунок",
+        "recurring": "Повторюваний"
+      }
     },
     "evidence": {
       "amountExact": "сума збігається точно",

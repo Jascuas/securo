@@ -154,8 +154,39 @@ def _as_expectation(tx: Transaction, account: Optional[Account]) -> Expectation:
     )
 
 
+def _excluded_leg(
+    tx: Transaction, account: Optional[Account], rules_: list[dict[str, Any]]
+) -> bool:
+    """Is this row the kind of thing that is never half of a transfer?
+
+    Asked once, before any rule sees it, and asked of **both sides**.
+    That symmetry is the point: a card purchase has to disappear whether
+    it is the row being examined or the row being offered as a
+    counterpart, and a check that ran in only one direction would let it
+    back in from the other.
+
+    A veto rather than a rule, because there is nothing here to weigh. A
+    debit on a credit card is money that went to a shop; it has no
+    second leg to find, so the number of candidates is zero and a rule
+    that got to look would only be choosing between wrong answers.
+    """
+    for rule in rules_:
+        kinds = rule.get("account_types")
+        if kinds and (account is None or account.type not in kinds):
+            continue
+        direction = rule.get("direction")
+        if direction and tx.type != direction:
+            continue
+        return True
+    return False
+
+
 async def _pool(
-    session: AsyncSession, workspace_id: uuid.UUID, ignored_sources: set[str]
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    ignored_sources: set[str],
+    excluded: list[dict[str, Any]],
+    accounts: dict[uuid.UUID, Account],
 ) -> list[Transaction]:
     """Every row still looking for its other half."""
     query = select(Transaction).where(
@@ -165,7 +196,11 @@ async def _pool(
     if ignored_sources:
         query = query.where(Transaction.source.not_in(ignored_sources))
     result = await session.execute(query)
-    return list(result.scalars().all())
+    return [
+        tx
+        for tx in result.scalars().all()
+        if not _excluded_leg(tx, accounts.get(tx.account_id), excluded)
+    ]
 
 
 async def detect_transfer_pairs(
@@ -196,11 +231,9 @@ async def detect_transfer_pairs(
         # hand.
         return 0
 
-    ignored = set(policy.get("scope", {}).get("ignore_transaction_sources", []))
-    pool = await _pool(session, workspace_id, ignored)
-    if len(pool) < 2:
-        return 0
-
+    scope = policy.get("scope", {})
+    # Loaded before the pool, because what counts as a leg at all depends
+    # on the kind of account it sits on.
     accounts = {
         account.id: account
         for account in (
@@ -209,6 +242,13 @@ async def detect_transfer_pairs(
             )
         ).scalars()
     }
+
+    ignored = set(scope.get("ignore_transaction_sources", []))
+    pool = await _pool(
+        session, workspace_id, ignored, scope.get("exclude_legs", []), accounts
+    )
+    if len(pool) < 2:
+        return 0
 
     window = _widest_window(policy)
     ratio = _widest_amount_ratio(policy)
