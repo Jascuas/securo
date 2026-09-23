@@ -2866,3 +2866,30 @@ def test_infer_decimal_separator():
     assert infer_decimal_separator(["25,000", "3,000"]) == "."
     assert infer_decimal_separator(["0,125"]) is None
     assert infer_decimal_separator(["10", ""]) is None
+
+
+def test_parse_csv_dr_cr_and_unicode_minus_keep_the_sign():
+    from app.services.import_service import parse_csv
+    csv_content = (
+        "date,description,amount\n"
+        "2026-08-01,Card,100.00 DR\n"
+        "2026-08-02,Refund,50.00 CR\n"
+        "2026-08-03,Fee,\u221240.00\n"
+        "2026-08-04,Costa Rica,CRC 10.00\n"
+    )
+    transactions, failed_rows = parse_csv(csv_content.encode("utf-8"))
+    assert failed_rows == []
+    assert [(t.type, t.amount) for t in transactions] == [
+        ("debit", Decimal("100.00")),
+        ("credit", Decimal("50.00")),
+        ("debit", Decimal("40.00")),
+        ("credit", Decimal("10.00")),
+    ]
+
+
+def test_normalize_amount_dr_cr_markers():
+    from app.services.import_service import normalize_amount
+    assert normalize_amount("1,234.56DR") == "-1234.56"
+    assert normalize_amount("-10.00 CR") == "10.00"
+    assert normalize_amount("10.00 XDR") == "10.00"
+    assert normalize_amount("\u20131.50") == "-1.50"

@@ -995,15 +995,27 @@ _COMMA_DECIMAL_TAIL = re.compile(r',\d{1,2}$')
 _DOT_DECIMAL_TAIL = re.compile(r'\.\d{1,2}$')
 _COMMA_THOUSANDS = re.compile(r'^\d{1,3}(,\d{3})+$')
 _ZERO_COMMA_DECIMAL = re.compile(r'^0,\d+$')
+_DR_CR_SUFFIX = re.compile(r'(?i)(?<![a-z])(dr|cr)\.?$')
+# U+2212 minus, U+2012 figure dash, U+2013 en dash, U+FE63 small and
+# U+FF0D fullwidth hyphen-minus: spreadsheet exports use them as a minus.
+_UNICODE_MINUS = str.maketrans({c: '-' for c in '\u2212\u2012\u2013\ufe63\uff0d'})
 
 
 def _strip_amount_decorations(amount_str: str) -> tuple[str, bool]:
     """Remove currency symbols, codes, whitespace and sign markers.
 
     Returns the bare number and whether it was negative. A leading minus
-    or accounting parentheses, e.g. "(12.50)", mark a negative amount.
+    (ASCII or a Unicode minus sign), accounting parentheses, e.g. "(12.50)",
+    or a trailing "DR" mark a negative amount; a trailing "CR" marks a
+    positive one.
     """
-    s = re.sub(r"[\s'\u00a0\u202f]", "", amount_str)
+    s = re.sub(r"[\s'\u00a0\u202f]", "", amount_str).translate(_UNICODE_MINUS)
+    # A standalone DR/CR suffix carries the sign, so read it before the edge
+    # strip below would drop it as a currency code. Codes such as "XDR" or
+    # "CRC" do not match.
+    marker = _DR_CR_SUFFIX.search(s)
+    if marker:
+        s = s[: marker.start()]
     negative = False
     while True:
         before = s
@@ -1018,6 +1030,8 @@ def _strip_amount_decorations(amount_str: str) -> tuple[str, bool]:
         elif s[:1] == "+":
             s = s[1:]
         if s == before:
+            if marker:
+                negative = marker.group(1).lower() == "dr"
             return s, negative
 
 
