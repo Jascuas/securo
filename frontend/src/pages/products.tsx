@@ -348,18 +348,19 @@ export function ProductDialog({
         return productsApi.create({ ...base, prices: filled.map(toPayload) })
       }
       // Product fields, then each price by what happened to it: new rows
-      // are added, kept rows updated, and rows removed here are deleted
-      // on the server (which refuses one an invoice was billed at, and
-      // says so).
+      // are added, existing rows updated. Nothing is deleted from here:
+      // an existing price the person no longer wants is archived, which
+      // is the only outcome the server allows once an invoice was billed
+      // at it, and the same outcome either way keeps the dialog honest.
       let saved = await productsApi.update(product.id, base)
-      const keptIds = new Set(filled.map((row) => row.id).filter(Boolean))
-      for (const old of product.prices) {
-        if (!keptIds.has(old.id)) saved = await productsApi.removePrice(product.id, old.id)
-      }
-      for (const row of filled) {
-        saved = row.id
-          ? await productsApi.updatePrice(product.id, row.id, { ...toPayload(row), active: row.active })
-          : await productsApi.addPrice(product.id, toPayload(row))
+      for (const row of prices) {
+        if (row.id) {
+          // A cleared amount on an existing price is not a change to it.
+          const patch = row.unit_price === '' ? {} : toPayload(row)
+          saved = await productsApi.updatePrice(product.id, row.id, { ...patch, active: row.active })
+        } else if (row.unit_price !== '') {
+          saved = await productsApi.addPrice(product.id, toPayload(row))
+        }
       }
       return saved
     },
@@ -368,7 +369,17 @@ export function ProductDialog({
       onOpenChange(false)
       onSaved()
     },
-    onError,
+    onError: (error) => {
+      onError(error)
+      // The edit path is several requests, and the ones before the
+      // failure have committed. Closing on the server's state means a
+      // retry starts from what is really there, instead of adding the
+      // same new price twice.
+      if (product) {
+        onSaved()
+        onOpenChange(false)
+      }
+    },
   })
 
   const ready = name.trim().length > 0 && prices.every((row) => row.billing !== 'recurring' || row.interval !== '' || row.unit_price === '')
@@ -454,16 +465,32 @@ export function ProductDialog({
                     data-testid={`price-nickname-${index}`}
                     maxLength={100}
                   />
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => setPrices(prices.filter((_, i) => i !== index))}
-                    data-testid={`price-remove-${index}`}
-                    aria-label={t('common.delete')}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {/* A new row is simply dropped. An existing price is
+                      archived instead: invoices may already name it, and
+                      the picker stops offering it either way. */}
+                  {row.id ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => updatePrice(index, { active: !row.active })}
+                      data-testid={`price-${row.active ? 'archive' : 'restore'}-${index}`}
+                      aria-label={row.active ? t('invoices.products.action.archive') : t('invoices.products.action.restore')}
+                    >
+                      {row.active ? <Archive className="h-4 w-4" /> : <ArchiveRestore className="h-4 w-4" />}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setPrices(prices.filter((_, i) => i !== index))}
+                      data-testid={`price-remove-${index}`}
+                      aria-label={t('common.delete')}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                   {showTax && (
                     <div className="col-span-2 sm:col-span-5 flex items-center gap-2">
                       <span className="text-[11px] text-muted-foreground">{t('invoices.field.taxRate')}</span>

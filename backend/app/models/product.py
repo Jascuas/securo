@@ -82,8 +82,10 @@ class Product(Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), index=True
     )
+    # Who created it, not who owns it: the catalog belongs to the
+    # workspace, so a member leaving takes nothing with them.
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
     name: Mapped[str] = mapped_column(String(200))

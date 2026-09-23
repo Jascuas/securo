@@ -140,6 +140,41 @@ describe('ProductsPage', () => {
   })
 })
 
+describe('ProductsPage editing', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    canWrite = true
+    api.products.list.mockResolvedValue([product()])
+    api.invoices.settings.mockResolvedValue({ tax_fields: 'hidden' })
+    api.products.update.mockResolvedValue(product())
+    api.products.updatePrice.mockResolvedValue(product())
+  })
+
+  it('archives an existing price instead of deleting it, and never deletes from the dialog', async () => {
+    const { user } = renderWithProviders(<ProductsPage />, { route: '/invoices/products' })
+    const [row] = await screen.findAllByTestId('product-row')
+    await user.click(within(row).getByLabelText(t('common.edit')))
+    await screen.findByTestId('product-name-input')
+    await user.click(screen.getByTestId('price-archive-1'))
+    expect(screen.getByTestId('price-restore-1')).toBeInTheDocument()
+    await user.click(screen.getByTestId('product-save'))
+    expect(api.products.removePrice).not.toHaveBeenCalled()
+    expect(api.products.updatePrice).toHaveBeenCalledWith('hour', 'eur', expect.objectContaining({ active: false }))
+    expect(api.products.updatePrice).toHaveBeenCalledWith('hour', 'usd', expect.objectContaining({ active: true }))
+  })
+
+  it('closes on the server state when a request in the sequence fails', async () => {
+    api.products.updatePrice.mockRejectedValueOnce({ response: { data: { detail: { code: 'negative_price' } } } })
+    const { user } = renderWithProviders(<ProductsPage />, { route: '/invoices/products' })
+    const [row] = await screen.findAllByTestId('product-row')
+    await user.click(within(row).getByLabelText(t('common.edit')))
+    await screen.findByTestId('product-name-input')
+    await user.click(screen.getByTestId('product-save'))
+    await screen.findAllByTestId('product-row')
+    expect(screen.queryByTestId('product-name-input')).not.toBeInTheDocument()
+  })
+})
+
 describe('InvoiceLineEditor with the catalog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
