@@ -49,7 +49,11 @@ JWT_CACHE_REFRESH_BEFORE = 600  # re-mint with 10 min buffer
 MAX_VALID_UNTIL_DAYS = 179
 DEFAULT_VALID_UNTIL_DAYS = MAX_VALID_UNTIL_DAYS
 DEFAULT_PSU_TYPE = "personal"
+# Days of history requested on a fresh fetch, counted inclusively (today is
+# day 1). Many banks cap the window at exactly 90 days.
 DEFAULT_HISTORY_DAYS = 90
+# Shorter window retried when a bank rejects the default one as out of bounds.
+FALLBACK_HISTORY_DAYS = 30
 TRANSACTION_PAGE_LIMIT = 50  # safety cap
 
 
@@ -173,6 +177,22 @@ def _extract_payee(raw: dict, indicator: str, source: str) -> Optional[str]:
     if indicator == "DBIT":
         return creditor or debtor
     return debtor or creditor
+
+
+def _history_start(today: date, days: int) -> date:
+    """First day of a ``days``-long window ending today, both ends inclusive."""
+    return today - timedelta(days=days - 1)
+
+
+def _is_wrong_period_error(resp: httpx.Response) -> bool:
+    """True when the bank rejected the requested date range as out of bounds."""
+    if resp.status_code != 422:
+        return False
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("error") == "WRONG_TRANSACTIONS_PERIOD"
 
 
 class EnableBankingProvider(BankProvider):
@@ -544,8 +564,44 @@ class EnableBankingProvider(BankProvider):
         payee_source: str = "auto",
     ) -> list[TransactionData]:
         _ = self._session_id(credentials)  # surface expired credentials early
-        date_from = (since or (app_today() - timedelta(days=DEFAULT_HISTORY_DAYS))).isoformat()
-        date_to = app_today().isoformat()
+        today = app_today()
+        if since is not None:
+            return await self._fetch_transactions(
+                account_external_id, since, today, payee_source
+            )
+        try:
+            return await self._fetch_transactions(
+                account_external_id,
+                _history_start(today, DEFAULT_HISTORY_DAYS),
+                today,
+                payee_source,
+            )
+        except httpx.HTTPStatusError as exc:
+            if not _is_wrong_period_error(exc.response):
+                raise
+            logger.warning(
+                "Enable Banking rejected a %d-day history window for account %s; "
+                "retrying with %d days",
+                DEFAULT_HISTORY_DAYS,
+                account_external_id,
+                FALLBACK_HISTORY_DAYS,
+            )
+            return await self._fetch_transactions(
+                account_external_id,
+                _history_start(today, FALLBACK_HISTORY_DAYS),
+                today,
+                payee_source,
+            )
+
+    async def _fetch_transactions(
+        self,
+        account_external_id: str,
+        start: date,
+        end: date,
+        payee_source: str,
+    ) -> list[TransactionData]:
+        date_from = start.isoformat()
+        date_to = end.isoformat()
         transactions: list[TransactionData] = []
         continuation_key: Optional[str] = None
         seen_continuation_keys: set[str] = set()
