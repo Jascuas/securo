@@ -1048,7 +1048,20 @@ async def generate_due(
     ).one()
     if locked.status != "active":
         return []
-    schedule.next_sequence = max(schedule.next_sequence, locked.next_sequence)
+    # The instance may predate the lock: a worker loads it, then a PATCH
+    # moves the start date and recomputes the cursor, then the worker
+    # gets here. Emitting from the stale calendar would skip periods.
+    # So everything the emission reads is reloaded now that the row is
+    # ours. Only those fields: the failure count lives on the instance
+    # until the caller commits it, and reloading it would reset it.
+    await session.refresh(
+        schedule,
+        attribute_names=[
+            "status", "frequency", "start_date", "end_type", "end_date",
+            "end_count", "next_sequence", "payee_id", "currency",
+            "payment_terms_days", "notes", "custom_fields", "terms",
+        ],
+    )
     emitted: list[Invoice] = []
     try:
         while len(emitted) < MAX_PERIODS_PER_RUN:

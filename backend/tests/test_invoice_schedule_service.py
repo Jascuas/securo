@@ -1060,3 +1060,24 @@ class TestReviewRegressions:
             assert await task._generate_one(TestSessionLocal, s.id) == 0
         await session.refresh(s)
         assert s.consecutive_failures == 0 and s.status == "active"
+
+    @pytest.mark.asyncio
+    async def test_a_worker_holding_a_stale_instance_emits_from_the_new_calendar(
+        self, session, ws_id, test_user
+    ):
+        """A worker loads the agreement, a PATCH then moves its start and
+        cursor, and only after that does the worker emit. It must emit from
+        what was committed, not from what it loaded."""
+        from tests.conftest import TestSessionLocal
+
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 10, 5), today=date(2026, 10, 1))
+        async with TestSessionLocal() as worker:
+            stale = await worker.get(InvoiceSchedule, s.id)
+            assert stale is not None and stale.start_date == date(2026, 10, 5)
+
+            await svc.update_schedule(session, s, {"start_date": date(2026, 12, 5)}, today=date(2026, 10, 1))
+            await session.commit()
+
+            emitted = await svc.generate_due(worker, stale, today=date(2026, 12, 5))
+            assert [(i.sequence, i.period_start) for i in emitted] == [(1, date(2026, 12, 5))]
+            await worker.commit()
