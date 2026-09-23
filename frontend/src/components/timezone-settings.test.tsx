@@ -24,7 +24,7 @@ it('lets administrators retry a failed timezone load', async () => {
 
   await screen.findByRole('alert')
   await user.click(screen.getByRole('button', { name: 'Retry' }))
-  expect(await screen.findByLabelText('Application timezone')).toHaveValue('UTC')
+  expect(await screen.findByLabelText('Application timezone')).toHaveTextContent('UTC')
 })
 
 it('refreshes date-sensitive data without invalidating unrelated settings', async () => {
@@ -65,11 +65,13 @@ it('refreshes date-sensitive data without invalidating unrelated settings', asyn
   const { user } = renderWithProviders(<TimezoneSettings />, { queryClient })
   const select = await screen.findByLabelText('Application timezone')
   expect(select).toHaveAccessibleDescription(/Calendar dates/)
-  await user.selectOptions(select, 'America/Sao_Paulo')
+  await user.click(select)
+  await user.type(screen.getByPlaceholderText('Search timezone...'), 'sao paulo')
+  await user.click(screen.getByRole('option', { name: /America\/Sao_Paulo/ }))
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
   await waitFor(() => expect(admin.updateSetting).toHaveBeenCalledWith('timezone', 'America/Sao_Paulo'))
-  await waitFor(() => expect(select).toHaveValue('America/Sao_Paulo'))
+  await waitFor(() => expect(select).toHaveTextContent('America/Sao_Paulo'))
   await waitFor(() => {
     for (const key of affected) expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
   })

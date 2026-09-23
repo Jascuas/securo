@@ -1956,6 +1956,9 @@
     "anyCountry": "Где-либо ещё"
   },
   "common": {
+    "selectTimezone": "Выберите часовой пояс",
+    "searchTimezone": "Поиск часового пояса...",
+    "noTimezoneFound": "Часовой пояс не найден.",
     "createNamed": "Создать «{{name}}»",
     "view": "Просмотр",
     "add": "Добавить",

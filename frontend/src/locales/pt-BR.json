@@ -1944,6 +1944,9 @@
     "anyCountry": "Qualquer outro lugar"
   },
   "common": {
+    "selectTimezone": "Selecionar fuso horário",
+    "searchTimezone": "Buscar fuso horário...",
+    "noTimezoneFound": "Nenhum fuso horário encontrado.",
     "createNamed": "Criar \"{{name}}\"",
     "view": "Ver",
     "add": "Adicionar",

@@ -1943,6 +1943,9 @@
     "anyCountry": "Οπουδήποτε αλλού"
   },
   "common": {
+    "selectTimezone": "Επιλογή ζώνης ώρας",
+    "searchTimezone": "Αναζήτηση ζώνης ώρας...",
+    "noTimezoneFound": "Δεν βρέθηκε ζώνη ώρας.",
     "createNamed": "Δημιουργία «{{name}}»",
     "view": "Προβολή",
     "add": "Προσθήκη",
