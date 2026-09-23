@@ -127,7 +127,7 @@ async def test_admin_can_forget_the_saved_timezone(client, admin_auth_headers, m
 async def test_names_that_are_files_but_not_timezones_are_rejected(client, admin_auth_headers):
     # `ZoneInfo("localtime")` loads on many hosts, but it is not a timezone
     # anyone should pick, and it would never round-trip through the picker.
-    for value in ("localtime", "posixrules"):
+    for value in ("localtime", "posixrules", "Factory"):
         response = await client.patch(
             "/api/admin/settings/timezone",
             headers=admin_auth_headers,

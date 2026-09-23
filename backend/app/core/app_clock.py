@@ -40,10 +40,15 @@ _CACHE_TTL_SECONDS = 30.0
 _saved_cache: tuple[float, Optional[str]] | None = None
 
 
+# Files that live next to the zones on some hosts without naming one: the
+# host's own link, the POSIX rules file and tzdata's placeholder zone.
+_NOT_TIMEZONES = frozenset({"localtime", "posixrules", "Factory"})
+
+
 @lru_cache(maxsize=1)
 def timezone_names() -> frozenset[str]:
     """Every IANA key this host can load, for validation and pickers."""
-    return frozenset(available_timezones())
+    return frozenset(available_timezones()) - _NOT_TIMEZONES
 
 
 def is_valid_timezone(name: str) -> bool:
