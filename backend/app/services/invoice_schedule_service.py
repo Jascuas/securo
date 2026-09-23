@@ -820,7 +820,7 @@ async def link_invoice(
 
     The retroactive door: someone who billed a retainer by hand from
     March to August and only now created the schedule gets their
-    history, and a Stripe import lands its invoices the same way. The
+    history, and a gateway import lands its invoices the same way. The
     date has to be a real period boundary, the period has to be free,
     and the invoice has to be the same money (currency, and client when
     both say one).

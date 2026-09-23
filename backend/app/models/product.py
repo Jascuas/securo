@@ -57,9 +57,9 @@ PRICE_BILLINGS = ("one_time", "recurring")
 #: an agreement without translation.
 PRICE_INTERVALS = ("weekly", "biweekly", "monthly", "quarterly", "semiannual", "yearly")
 
-#: Who authored the row. `imported` mirrors a gateway's catalog (a Stripe
-#: product or price): that system owns it, and a re-sync converges on
-#: the same row through the external id.
+#: Who authored the row. `imported` mirrors a payment gateway's catalog:
+#: that system owns it, and a re-sync converges on the same row through
+#: the external id.
 PRODUCT_ORIGINS = ("local", "imported")
 
 

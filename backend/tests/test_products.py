@@ -105,13 +105,13 @@ class TestCatalog:
             await make_product(session, ws_id, test_user.id, origin="imported")
         assert exc.value.code == "external_source_required"
         p = await make_product(
-            session, ws_id, test_user.id, origin="imported", external_source="stripe", external_id="prod_1",
-            prices=[{"currency": "USD", "unit_price": "10", "external_source": "stripe", "external_id": "price_1"}],
+            session, ws_id, test_user.id, origin="imported", external_source="gateway", external_id="prod_1",
+            prices=[{"currency": "USD", "unit_price": "10", "external_source": "gateway", "external_id": "price_1"}],
         )
-        found = await svc.find_by_external_id(session, ws_id, "stripe", "prod_1")
+        found = await svc.find_by_external_id(session, ws_id, "gateway", "prod_1")
         assert found is not None and found.id == p.id
         with pytest.raises(InvoiceError) as exc:
-            await make_product(session, ws_id, test_user.id, origin="imported", external_source="stripe", external_id="prod_1", prices=[])
+            await make_product(session, ws_id, test_user.id, origin="imported", external_source="gateway", external_id="prod_1", prices=[])
         assert exc.value.code == "already_imported" and exc.value.status_code == 409
 
     @pytest.mark.asyncio
