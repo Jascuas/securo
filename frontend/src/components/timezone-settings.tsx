@@ -27,6 +27,7 @@ const calendarQueryKeys = new Set([
   'invoice-facets',
   'invoice-document',
   'reconciliation-suggestions',
+  'drill-down',
 ])
 
 export function TimezoneSettings() {

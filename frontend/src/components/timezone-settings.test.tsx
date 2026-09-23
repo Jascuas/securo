@@ -52,6 +52,7 @@ it('refreshes date-sensitive data without invalidating unrelated settings', asyn
     ['invoice-facets'],
     ['invoice-document', 'invoice-id'],
     ['reconciliation-suggestions'],
+    ['drill-down'],
   ]
   const unrelated = [
     ['admin', 'users'],
