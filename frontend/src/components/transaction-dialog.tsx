@@ -107,6 +107,7 @@ export function TransactionDialog({
   isSynced = false,
   duplicateDraft = null,
   formResetKey = 0,
+  defaultAccountId,
 }: {
   open: boolean
   onClose: () => void
@@ -125,6 +126,8 @@ export function TransactionDialog({
   isSynced?: boolean
   duplicateDraft?: TransactionEditPayload | null
   formResetKey?: number
+  /** Account preselected when creating a new transaction. */
+  defaultAccountId?: string
 }) {
   const { t } = useTranslation()
   const [preview, setPreview] = useState<AttachmentPreview | null>(null)
@@ -215,6 +218,7 @@ export function TransactionDialog({
               key={transaction?.id ?? `new-${formResetKey}`}
               transaction={transaction}
               duplicateDraft={duplicateDraft}
+              defaultAccountId={defaultAccountId}
               categories={categories}
               categoryGroups={categoryGroups}
               accounts={accounts}
@@ -376,6 +380,7 @@ export function TransactionDialog({
 function TransactionForm({
   transaction,
   duplicateDraft,
+  defaultAccountId,
   categories,
   categoryGroups,
   accounts,
@@ -395,6 +400,7 @@ function TransactionForm({
 }: {
   transaction: Transaction | null
   duplicateDraft: TransactionEditPayload | null
+  defaultAccountId?: string
   categories: Category[]
   categoryGroups: CategoryGroup[]
   accounts: { id: string; name: string; display_name?: string | null; type?: string }[]
@@ -444,7 +450,7 @@ function TransactionForm({
   const [currency, setCurrency] = useState(seed?.currency ?? userCurrency)
   const [categoryId, setCategoryId] = useState(seed?.category_id ?? '')
   const [payeeId, setPayeeId] = useState(seed?.payee_id ?? '')
-  const [accountId, setAccountId] = useState(seed?.account_id ?? sortedAccounts[0]?.id ?? '')
+  const [accountId, setAccountId] = useState(seed?.account_id ?? defaultAccountId ?? sortedAccounts[0]?.id ?? '')
   const [notes, setNotes] = useState(seed?.notes ?? '')
   // Manual CC bucketing override (issue #92). Empty = auto. Visible only
   // when the selected account is a credit card.
