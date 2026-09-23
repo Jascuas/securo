@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock } from 'lucide-react'
+import { AlertTriangle, CalendarClock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { admin } from '@/lib/api'
+import { admin, type TimezoneSetting } from '@/lib/api'
 
 const calendarQueryKeys = new Set([
   'accounts',
@@ -27,7 +27,11 @@ const calendarQueryKeys = new Set([
   'invoice-facets',
   'invoice-document',
   'reconciliation-suggestions',
+  'timezones',
 ])
+
+/** The option that means "nothing saved, follow the server". */
+const SERVER_DEFAULT = ''
 
 export function TimezoneSettings() {
   const { t } = useTranslation()
@@ -38,11 +42,20 @@ export function TimezoneSettings() {
     queryFn: admin.timezone,
   })
   const saveTimezone = useMutation({
-    mutationFn: (timezone: string) => admin.updateSetting('timezone', timezone),
-    onSuccess: (_setting, timezone) => {
-      queryClient.setQueryData<{ timezone: string; available: string[] }>(
-        ['admin', 'timezone'],
-        (current) => current ? { ...current, timezone } : current,
+    mutationFn: async (timezone: string) => {
+      if (timezone === SERVER_DEFAULT) await admin.deleteSetting('timezone')
+      else await admin.updateSetting('timezone', timezone)
+      return timezone
+    },
+    onSuccess: (timezone) => {
+      queryClient.setQueryData<TimezoneSetting>(['admin', 'timezone'], (current) =>
+        current
+          ? {
+              ...current,
+              saved: timezone === SERVER_DEFAULT ? null : timezone,
+              timezone: timezone === SERVER_DEFAULT ? current.fallback : timezone,
+            }
+          : current,
       )
       setDraft(undefined)
       void queryClient.invalidateQueries({ queryKey: ['admin', 'timezone'] })
@@ -54,8 +67,14 @@ export function TimezoneSettings() {
     onError: () => toast.error(t('common.error')),
   })
 
-  const currentTimezone = timezoneQuery.data?.timezone
-  const selectedTimezone = draft ?? currentTimezone
+  const setting = timezoneQuery.data
+  // A saved value the server cannot load is shown as what it is, so the
+  // administrator sees the problem here and not only in the logs, and
+  // picking anything else (the server default included) is a real change
+  // that clears it.
+  const savedIsBroken = !!setting?.saved && !setting.available.includes(setting.saved)
+  const currentChoice = setting?.saved ?? SERVER_DEFAULT
+  const selectedChoice = draft ?? currentChoice
 
   return (
     <section className="mb-8 rounded-xl border border-border/60 bg-card overflow-hidden">
@@ -81,29 +100,51 @@ export function TimezoneSettings() {
               {t('common.retry')}
             </Button>
           </div>
-        ) : !timezoneQuery.data ? (
+        ) : !setting ? (
           <p role="status" className="text-sm text-muted-foreground">{t('common.loading')}</p>
         ) : (
-          <div className="flex flex-wrap items-center gap-3">
-            <select
-              id="application-timezone"
-              aria-describedby="application-timezone-help"
-              className="h-10 max-w-full rounded-lg border border-input bg-card px-3 text-sm"
-              disabled={saveTimezone.isPending}
-              value={selectedTimezone}
-              onChange={(event) => setDraft(event.target.value)}
-            >
-              {timezoneQuery.data.available.map((name) => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
-            <Button
-              disabled={saveTimezone.isPending || !draft || draft === currentTimezone}
-              onClick={() => draft && saveTimezone.mutate(draft)}
-            >
-              {saveTimezone.isPending ? t('common.loading') : t('common.save')}
-            </Button>
-          </div>
+          <>
+            {savedIsBroken && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300"
+              >
+                <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+                <span>
+                  {t('admin.settings.timezoneSavedInvalid', {
+                    value: setting.saved,
+                    zone: setting.timezone,
+                  })}
+                </span>
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                id="application-timezone"
+                aria-describedby="application-timezone-help"
+                className="h-10 max-w-full rounded-lg border border-input bg-card px-3 text-sm"
+                disabled={saveTimezone.isPending}
+                value={selectedChoice}
+                onChange={(event) => setDraft(event.target.value)}
+              >
+                <option value={SERVER_DEFAULT}>
+                  {t('admin.settings.timezoneServerDefault', { zone: setting.fallback })}
+                </option>
+                {savedIsBroken && setting.saved && (
+                  <option value={setting.saved} disabled>{setting.saved}</option>
+                )}
+                {setting.available.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <Button
+                disabled={saveTimezone.isPending || draft === undefined || draft === currentChoice}
+                onClick={() => draft !== undefined && saveTimezone.mutate(draft)}
+              >
+                {saveTimezone.isPending ? t('common.loading') : t('common.save')}
+              </Button>
+            </div>
+          </>
         )}
       </div>
     </section>

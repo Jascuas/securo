@@ -7,14 +7,22 @@ import { renderWithProviders } from '@/test/utils'
 
 import { TimezoneSettings } from './timezone-settings'
 
-vi.mock('@/lib/api', () => ({ admin: { timezone: vi.fn(), updateSetting: vi.fn() } }))
+vi.mock('@/lib/api', () => ({
+  admin: { timezone: vi.fn(), updateSetting: vi.fn(), deleteSetting: vi.fn() },
+}))
 
-const settings = { timezone: 'UTC', available: ['UTC', 'America/Sao_Paulo'] }
+const settings = {
+  timezone: 'Etc/UTC',
+  saved: null,
+  fallback: 'Etc/UTC',
+  available: ['Etc/UTC', 'America/Sao_Paulo'],
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(admin.timezone).mockResolvedValue(settings)
   vi.mocked(admin.updateSetting).mockResolvedValue({ key: 'timezone', value: 'America/Sao_Paulo' })
+  vi.mocked(admin.deleteSetting).mockResolvedValue(undefined)
 })
 
 it('lets administrators retry a failed timezone load', async () => {
@@ -24,7 +32,9 @@ it('lets administrators retry a failed timezone load', async () => {
 
   await screen.findByRole('alert')
   await user.click(screen.getByRole('button', { name: 'Retry' }))
-  expect(await screen.findByLabelText('Application timezone')).toHaveValue('UTC')
+  // Nothing saved reads as the server default, named after where it lands.
+  expect(await screen.findByLabelText('Application timezone')).toHaveValue('')
+  expect(screen.getByRole('option', { name: 'Server default (Etc/UTC)' })).toBeInTheDocument()
 })
 
 it('refreshes date-sensitive data without invalidating unrelated settings', async () => {
@@ -52,6 +62,7 @@ it('refreshes date-sensitive data without invalidating unrelated settings', asyn
     ['invoice-facets'],
     ['invoice-document', 'invoice-id'],
     ['reconciliation-suggestions'],
+    ['timezones'],
   ]
   const unrelated = [
     ['admin', 'users'],
@@ -74,4 +85,43 @@ it('refreshes date-sensitive data without invalidating unrelated settings', asyn
   })
   for (const key of unrelated) expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false)
   queryClient.clear()
+})
+
+it('forgets the saved timezone when the server default is chosen', async () => {
+  // First load has a saved zone; the refetch after saving reports it gone.
+  vi.mocked(admin.timezone)
+    .mockResolvedValueOnce({ ...settings, timezone: 'America/Sao_Paulo', saved: 'America/Sao_Paulo' })
+    .mockResolvedValue(settings)
+
+  const { user } = renderWithProviders(<TimezoneSettings />)
+  const select = await screen.findByLabelText('Application timezone')
+  expect(select).toHaveValue('America/Sao_Paulo')
+
+  await user.selectOptions(select, '')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(admin.deleteSetting).toHaveBeenCalledWith('timezone'))
+  expect(admin.updateSetting).not.toHaveBeenCalled()
+  await waitFor(() => expect(select).toHaveValue(''))
+})
+
+it('warns when the saved value is not a timezone the server knows', async () => {
+  vi.mocked(admin.timezone).mockResolvedValue({
+    ...settings,
+    timezone: 'Etc/UTC',
+    saved: 'Mars/Olympus_Mons',
+  })
+
+  const { user } = renderWithProviders(<TimezoneSettings />)
+
+  const warning = await screen.findByRole('alert')
+  expect(warning).toHaveTextContent('Mars/Olympus_Mons')
+  expect(warning).toHaveTextContent('Etc/UTC')
+  // The picker shows the broken value as it is, so choosing the server
+  // default is a real change that clears it.
+  const select = screen.getByLabelText('Application timezone')
+  expect(select).toHaveValue('Mars/Olympus_Mons')
+  await user.selectOptions(select, '')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(admin.deleteSetting).toHaveBeenCalledWith('timezone'))
 })
