@@ -1835,6 +1835,7 @@
     "loadError": "レポートの読み込みに失敗しました"
   },
   "payees": {
+    "noPayeeFound": "取引相手が見つかりません。",
     "addFavorite": "お気に入りに追加",
     "removeFavorite": "お気に入りから削除",
     "title": "取引相手",
@@ -1941,6 +1942,7 @@
     "anyCountry": "その他すべての国"
   },
   "common": {
+    "createNamed": "「{{name}}」を作成",
     "view": "表示",
     "add": "追加",
     "save": "保存",

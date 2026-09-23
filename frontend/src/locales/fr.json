@@ -1836,6 +1836,7 @@
     "loadError": "Échec du chargement du rapport"
   },
   "payees": {
+    "noPayeeFound": "Aucun bénéficiaire trouvé.",
     "addFavorite": "Ajouter aux favoris",
     "removeFavorite": "Retirer des favoris",
     "favoriteError": "Impossible de mettre à jour le favori",
@@ -1942,6 +1943,7 @@
     "anyCountry": "Ailleurs"
   },
   "common": {
+    "createNamed": "Créer « {{name}} »",
     "view": "Voir",
     "add": "Ajouter",
     "save": "Enregistrer",

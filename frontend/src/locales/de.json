@@ -1836,6 +1836,7 @@
     "loadError": "Bericht konnte nicht geladen werden"
   },
   "payees": {
+    "noPayeeFound": "Kein Zahlungsempfänger gefunden.",
     "addFavorite": "Zu Favoriten hinzufügen",
     "removeFavorite": "Aus Favoriten entfernen",
     "favoriteError": "Favorit konnte nicht aktualisiert werden",
@@ -1942,6 +1943,7 @@
     "anyCountry": "Anderswo"
   },
   "common": {
+    "createNamed": "„{{name}}“ erstellen",
     "view": "Ansehen",
     "add": "Hinzufügen",
     "save": "Speichern",
