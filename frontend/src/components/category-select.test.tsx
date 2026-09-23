@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -35,16 +35,24 @@ function withRole(canWrite: boolean) {
 function renderSelect({ canWrite = true, creatable = true } = {}) {
   const onChange = vi.fn()
   const Workspace = withRole(canWrite)
-  const utils = renderWithProviders(
-    <Workspace>
+  // Holds the value like a real form does, so a test sees what the trigger
+  // shows after a change rather than only that a callback ran.
+  function Harness() {
+    const [value, setValue] = useState('')
+    return (
       <CategorySelect
-        value=""
-        onChange={onChange}
+        value={value}
+        onChange={(v) => { setValue(v); onChange(v) }}
         categories={[groceries]}
         groups={[]}
         allowNone
         creatable={creatable}
       />
+    )
+  }
+  const utils = renderWithProviders(
+    <Workspace>
+      <Harness />
     </Workspace>,
   )
   return { ...utils, onChange }
@@ -69,6 +77,8 @@ describe('CategorySelect inline creation', () => {
     await user.click(screen.getByText(t('common.createNamed', { name: 'Pet food' })))
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('cat-new'))
+    // The supplied list has not refetched, yet the trigger shows the new category.
+    expect(screen.getByRole('button', { name: 'Pet food' })).toBeInTheDocument()
     expect(create).toHaveBeenCalledWith({ name: 'Pet food', icon: 'circle-help', color: '#6366f1' })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['categories'] })
   })

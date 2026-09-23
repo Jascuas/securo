@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -25,18 +25,32 @@ function Workspace({ canWrite, children }: { canWrite: boolean; children: ReactN
   )
 }
 
+// Holds the value like a real form does, so a test sees what the trigger
+// shows after a change rather than only that a callback ran.
+function Harness({ initial, onChange }: { initial: string; onChange: (v: string) => void }) {
+  const [value, setValue] = useState(initial)
+  return (
+    <PayeeSelect
+      value={value}
+      onChange={(v) => { setValue(v); onChange(v) }}
+      payees={[bakery, acme]}
+      creatable
+    />
+  )
+}
+
 function renderSelect({ canWrite = true, value = '' } = {}) {
   const onChange = vi.fn()
   const utils = renderWithProviders(
     <Workspace canWrite={canWrite}>
-      <PayeeSelect value={value} onChange={onChange} payees={[bakery, acme]} creatable />
+      <Harness initial={value} onChange={onChange} />
     </Workspace>,
   )
   return { ...utils, onChange }
 }
 
 async function openAndType(user: ReturnType<typeof renderWithProviders>['user'], text: string) {
-  await user.click(screen.getByRole('button', { name: t('payees.payee') }))
+  await user.click(screen.getByRole('button'))
   await user.type(screen.getByPlaceholderText(t('payees.searchPlaceholder')), text)
 }
 
@@ -45,9 +59,14 @@ describe('PayeeSelect', () => {
     create.mockReset()
   })
 
-  it('shows the selected payee and falls back to "no payee"', () => {
+  it('names the trigger after the selected payee', () => {
     renderSelect({ value: 'payee-2' })
-    expect(screen.getByRole('button', { name: t('payees.payee') })).toHaveTextContent('Corner Bakery')
+    expect(screen.getByRole('button', { name: 'Corner Bakery' })).toBeInTheDocument()
+  })
+
+  it('names the trigger "no payee" when none is selected', () => {
+    renderSelect()
+    expect(screen.getByRole('button', { name: t('payees.noPayee') })).toBeInTheDocument()
   })
 
   it('filters payees by name and selects one', async () => {
@@ -69,6 +88,8 @@ describe('PayeeSelect', () => {
     await user.click(screen.getByText(t('common.createNamed', { name: 'Dog Groomer' })))
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith('payee-new'))
+    // The supplied list has not refetched, yet the trigger shows the new payee.
+    expect(screen.getByRole('button', { name: 'Dog Groomer' })).toBeInTheDocument()
     expect(create).toHaveBeenCalledWith({ name: 'Dog Groomer' })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['payees'] })
   })
