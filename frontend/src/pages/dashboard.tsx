@@ -38,7 +38,7 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { CheckCircle2, CalendarIcon, Clock, Paperclip, Target, ArrowUpDown, HelpCircle, EyeClosed, AlertCircle, Plus } from 'lucide-react'
+import { CheckCircle2, CalendarIcon, Clock, Paperclip, Target, ArrowUpDown, HelpCircle, EyeClosed, AlertCircle } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ICON_MAP } from '@/lib/category-icons'
 import { PageHeader } from '@/components/page-header'
@@ -53,8 +53,6 @@ import { RuleDialog, type RuleDialogInitialData } from '@/components/rule-dialog
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/auth-context'
-import { useWorkspace } from '@/contexts/workspace-context'
-import { useCreateTransaction } from '@/hooks/use-create-transaction'
 import { useCollectionFilter } from '@/contexts/collection-filter-context'
 import { resolveDateFnsLocale } from '@/lib/date-fns-locale'
 import type { Rule, Transaction } from '@/types'
@@ -98,7 +96,6 @@ export default function DashboardPage() {
   const { mask, privacyMode, MASK } = usePrivacyMode()
   const isMobile = useIsMobile()
   const { user } = useAuth()
-  const { canWrite } = useWorkspace()
   const userCurrency = user?.preferences?.currency_display ?? 'USD'
   const displayName = user?.preferences?.display_name || ''
   const locale = useDisplayLocale()
@@ -165,19 +162,6 @@ export default function DashboardPage() {
   }, [selectedMonth, txViewMode, calendarSelectedDate, setSearchParams])
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const {
-    mutation: createMutation,
-    create: createTransaction,
-    duplicateDraft,
-    setDuplicateDraft,
-    formResetKey,
-    resetForm,
-  } = useCreateTransaction({ onDone: () => setDialogOpen(false) })
-  const openCreateDialog = () => {
-    setEditingTx(null)
-    resetForm(null)
-    setDialogOpen(true)
-  }
   const [createRuleOpen, setCreateRuleOpen] = useState(false)
   const [createRuleInitialData, setCreateRuleInitialData] = useState<RuleDialogInitialData | undefined>(undefined)
   const queryClient = useQueryClient()
@@ -666,13 +650,6 @@ export default function DashboardPage() {
               className="h-8 w-8 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:border-border hover:text-foreground transition-all text-base"
               onClick={() => handleMonthChange(shiftMonth(selectedMonth, 1))}
             >&#8250;</button>
-            {canWrite && (
-              <Button size="sm" className="ml-auto sm:ml-2 h-8 gap-1 px-3" onClick={openCreateDialog}>
-                <Plus className="h-4 w-4" />
-                <span className="sm:hidden">{t('common.add')}</span>
-                <span className="hidden sm:inline">{t('transactions.addManual')}</span>
-              </Button>
-            )}
           </div>
         }
       />
@@ -1591,31 +1568,25 @@ export default function DashboardPage() {
 
       <TransactionDialog
         open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false)
-          setEditingTx(null)
-          setDuplicateDraft(null)
-          createMutation.reset()
-        }}
+        onClose={() => { setDialogOpen(false); setEditingTx(null) }}
         transaction={editingTx}
-        duplicateDraft={duplicateDraft}
-        formResetKey={formResetKey}
         categories={categoriesList ?? []}
         categoryGroups={categoryGroupsList ?? []}
         accounts={(accountsList ?? []).map((a: { id: string; name: string; display_name?: string | null }) => ({ id: a.id, name: getAccountName(a) }))}
-        onSave={(data, recurringData, installmentData, pendingFiles, action) => {
+        onSave={(data) => {
           if (editingTx) updateMutation.mutate({ id: editingTx.id, ...data })
-          else createTransaction(data, recurringData, installmentData, pendingFiles, action)
         }}
-        onDelete={editingTx ? () => deleteMutation.mutate(editingTx.id) : undefined}
+        onDelete={() => {
+          if (editingTx) deleteMutation.mutate(editingTx.id)
+        }}
         onUnlinkTransfer={(pairId) => unlinkTransferMutation.mutate(pairId)}
         onCreateRule={(tx) => {
           setDialogOpen(false)
           setEditingTx(null)
           handleCreateRuleFromTransaction(tx)
         }}
-        loading={createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || unlinkTransferMutation.isPending}
-        error={createMutation.error ? extractApiError(createMutation.error) : updateMutation.error ? extractApiError(updateMutation.error) : deleteMutation.error ? extractApiError(deleteMutation.error) : null}
+        loading={updateMutation.isPending || deleteMutation.isPending || unlinkTransferMutation.isPending}
+        error={updateMutation.error ? extractApiError(updateMutation.error) : deleteMutation.error ? extractApiError(deleteMutation.error) : null}
         isSynced={editingTx?.source === 'sync'}
       />
 
