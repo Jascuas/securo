@@ -114,7 +114,7 @@ export function TransactionDialog({
   transaction: Transaction | null
   categories: Category[]
   categoryGroups: CategoryGroup[]
-  accounts: { id: string; name: string; display_name?: string | null; type?: string }[]
+  accounts: { id: string; name: string; display_name?: string | null; type?: string; currency?: string }[]
   recurringMatch?: RecurringTransaction
   onSave: (data: TransactionSavePayload, recurringData?: { frequency: string; end_date?: string }, installmentData?: InstallmentSeriesInput, pendingFiles?: File[], action?: SaveAction) => void
   onDelete?: () => void
@@ -403,7 +403,7 @@ function TransactionForm({
   defaultAccountId?: string
   categories: Category[]
   categoryGroups: CategoryGroup[]
-  accounts: { id: string; name: string; display_name?: string | null; type?: string }[]
+  accounts: { id: string; name: string; display_name?: string | null; type?: string; currency?: string }[]
   recurringMatch?: RecurringTransaction
   onSave: (data: TransactionEditPayload, recurringData?: { frequency: string; end_date?: string }, installmentData?: InstallmentSeriesInput, pendingFiles?: File[], action?: SaveAction) => void
   onDelete?: () => void
@@ -447,7 +447,12 @@ function TransactionForm({
   const [date, setDate] = useState(seed?.date ?? localDateString())
   const [type, setType] = useState<'debit' | 'credit'>(seed?.type ?? 'debit')
   const [status, setStatus] = useState<'posted' | 'pending'>(seed?.status ?? 'posted')
-  const [currency, setCurrency] = useState(seed?.currency ?? userCurrency)
+  // Opened from an account page, start in that account's currency.
+  const [currency, setCurrency] = useState(
+    seed?.currency
+      ?? (defaultAccountId ? accounts.find(a => a.id === defaultAccountId)?.currency : undefined)
+      ?? userCurrency
+  )
   const [categoryId, setCategoryId] = useState(seed?.category_id ?? '')
   const [payeeId, setPayeeId] = useState(seed?.payee_id ?? '')
   const [accountId, setAccountId] = useState(seed?.account_id ?? defaultAccountId ?? sortedAccounts[0]?.id ?? '')
