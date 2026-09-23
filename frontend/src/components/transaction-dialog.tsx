@@ -874,7 +874,11 @@ function TransactionForm({
                     {pairAccount ? (
                       <Link
                         to={`/accounts/${pairAccount.id}`}
-                        onClick={onCancel}
+                        onClick={(e) => {
+                          // A modified click opens a new tab; keep the dialog and its edits.
+                          if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+                          onCancel()
+                        }}
                         title={t('transactions.transferOpenAccount', { account: getAccountName(pairAccount) })}
                         className="underline underline-offset-2 hover:text-blue-800 dark:hover:text-blue-100"
                       >
