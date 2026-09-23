@@ -28,6 +28,7 @@ const calendarQueryKeys = new Set([
   'invoice-document',
   'reconciliation-suggestions',
   'timezones',
+  'drill-down',
 ])
 
 /** The option that means "nothing saved, follow the server". */
