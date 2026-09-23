@@ -87,11 +87,17 @@ def invalidate_timezone_cache() -> None:
     _saved_cache = None
 
 
-async def saved_timezone_name(session: AsyncSession) -> Optional[str]:
-    """The raw application timezone setting, valid or not, or None when unset."""
+async def saved_timezone_name(session: AsyncSession, *, fresh: bool = False) -> Optional[str]:
+    """The raw application timezone setting, valid or not, or None when unset.
+
+    ``fresh`` skips the cache. Requests can live with a value up to thirty
+    seconds old, but a job that writes dated rows must not: the process that
+    saved a new value only dropped its own cache, and a worker that captured
+    the old zone could still stamp the old day onto a recurring transaction.
+    """
     global _saved_cache
     now = time.monotonic()
-    if _saved_cache is not None and _saved_cache[0] > now:
+    if not fresh and _saved_cache is not None and _saved_cache[0] > now:
         return _saved_cache[1]
 
     from app.models.app_settings import AppSetting
@@ -101,9 +107,9 @@ async def saved_timezone_name(session: AsyncSession) -> Optional[str]:
     return name or None
 
 
-async def get_timezone(session: AsyncSession) -> ZoneInfo:
+async def get_timezone(session: AsyncSession, *, fresh: bool = False) -> ZoneInfo:
     """Resolve the application timezone: the saved setting, else the environment."""
-    name = await saved_timezone_name(session)
+    name = await saved_timezone_name(session, fresh=fresh)
     if name:
         timezone = parse_timezone(name)
         if timezone is not None:
@@ -160,13 +166,19 @@ def use_resolved_timezone(timezone: ZoneInfo):
 
 
 @asynccontextmanager
-async def use_timezone(session: AsyncSession, workspace_id: Optional[uuid.UUID] = None):
+async def use_timezone(
+    session: AsyncSession,
+    workspace_id: Optional[uuid.UUID] = None,
+    *,
+    fresh: bool = False,
+):
     """Resolve and snapshot the timezone for one database-backed operation.
 
     With a workspace, the snapshot is that workspace's timezone; without one,
-    the application timezone.
+    the application timezone. Jobs pass ``fresh`` to read the saved setting
+    rather than a cached copy.
     """
-    with use_resolved_timezone(await get_timezone(session)):
+    with use_resolved_timezone(await get_timezone(session, fresh=fresh)):
         if workspace_id is None:
             yield
             return

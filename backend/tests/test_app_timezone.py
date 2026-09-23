@@ -499,3 +499,58 @@ async def test_mcp_defaults_use_application_month(session, test_user, test_works
         )
 
     assert result["month"] == "2026-05-01"
+
+
+@pytest.mark.asyncio
+async def test_recurring_job_reads_the_saved_timezone_past_a_stale_cache(
+    session, test_user, test_workspace, test_account, monkeypatch
+):
+    """A worker that cached the old zone must not stamp the old day on rows.
+
+    The admin endpoint only drops the cache of the process that handled the
+    save, so the job reads the setting itself instead of trusting the cache.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.core.app_clock import get_timezone
+    from app.schemas.recurring_transaction import RecurringTransactionCreate
+    from app.services.recurring_transaction_service import create_recurring_transaction
+    from app.tasks.recurring_tasks import _generate_all
+
+    monkeypatch.setenv("TZ", "UTC")
+    await create_recurring_transaction(
+        session,
+        test_workspace.id,
+        test_user.id,
+        RecurringTransactionCreate(
+            description="Due on the 19th",
+            amount=10,
+            type="debit",
+            frequency="monthly",
+            start_date=date(2026, 5, 19),
+            account_id=test_account.id,
+            auto_generate=True,
+        ),
+    )
+    setting = AppSetting(key="timezone", value="America/Sao_Paulo")
+    session.add(setting)
+    await session.commit()
+    # This process caches Sao Paulo, where May 19 has not started yet...
+    assert str(await get_timezone(session)) == "America/Sao_Paulo"
+    # ...then another process saves UTC, where it has.
+    setting.value = "UTC"
+    await session.commit()
+    assert str(await get_timezone(session)) == "America/Sao_Paulo"
+
+    maker = async_sessionmaker(session.bind, expire_on_commit=False)
+    with (
+        patch("app.core.app_clock.datetime", FixedDatetime),
+        patch(
+            "app.tasks.recurring_tasks._make_session_maker",
+            return_value=(SimpleNamespace(dispose=AsyncMock()), maker),
+        ),
+    ):
+        assert await _generate_all() == 1

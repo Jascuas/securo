@@ -51,7 +51,7 @@ async def _sync_all() -> int:
         synced = 0
 
         async with session_maker() as session:
-            operation_timezone = await get_timezone(session)
+            operation_timezone = await get_timezone(session, fresh=True)
             result = await session.execute(
                 select(
                     BankConnection.id,
@@ -152,7 +152,7 @@ async def _sync_one_celery(connection_id: str, user_id: str) -> None:
             if workspace_id is None:
                 logger.warning("Connection %s has no workspace; skipping sync", connection_id)
                 return
-            async with use_timezone(session, workspace_id):
+            async with use_timezone(session, workspace_id, fresh=True):
                 await connection_service.sync_connection(
                     session, conn_uuid, workspace_id, uuid.UUID(user_id)
                 )

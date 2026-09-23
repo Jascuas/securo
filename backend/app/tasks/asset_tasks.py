@@ -56,7 +56,7 @@ async def _apply_growth_rules() -> int:
         total = 0
 
         async with session_maker() as session:
-            operation_timezone = await get_timezone(session)
+            operation_timezone = await get_timezone(session, fresh=True)
             result = await session.execute(
                 select(Asset).where(
                     Asset.valuation_method == "growth_rule",
@@ -158,7 +158,7 @@ async def _refresh_market_prices() -> dict[str, int]:
     """
     engine, session_maker = _make_session_maker()
     try:
-        async with session_maker() as session, use_timezone(session):
+        async with session_maker() as session, use_timezone(session, fresh=True):
             return await refresh_all_market_prices(session)
     finally:
         await engine.dispose()

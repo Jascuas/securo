@@ -6,14 +6,16 @@ import { timezones as timezonesApi } from '@/lib/api'
 
 /**
  * The timezones a signed-in person can pick from, plus the application
- * default a workspace follows when it has none of its own. Cached for the
- * session: the list never changes and the default rarely does.
+ * default a workspace follows when it has none of its own. The list never
+ * changes, but the default can be changed by an administrator in another
+ * browser, so it is refetched after a few minutes rather than kept for the
+ * whole session; saving it here invalidates the query straight away.
  */
 export function useTimezones() {
   return useQuery({
     queryKey: ['timezones'],
     queryFn: timezonesApi.list,
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
   })
 }
 
