@@ -39,12 +39,16 @@ class InvoiceLineInput(BaseModel):
     #: values above are still the line's own; these only remember.
     product_id: Optional[uuid.UUID] = None
     price_id: Optional[uuid.UUID] = None
+    #: Fiscal references for this line (a goods or service code). Filled
+    #: from the product when omitted; a line may bring its own.
+    fiscal_refs: Optional[dict[str, str]] = None
 
 
 class InvoiceLineRead(BaseModel):
     id: uuid.UUID
     product_id: Optional[uuid.UUID] = None
     price_id: Optional[uuid.UUID] = None
+    fiscal_refs: Optional[dict[str, str]] = None
     description: str
     quantity: Decimal
     unit: Optional[str] = None

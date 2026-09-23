@@ -339,7 +339,9 @@
       "interval_required": "Opakovaná cena potrebuje frekvenciu.",
       "currency_required": "Cena potrebuje menu.",
       "unit_price_required": "Cena potrebuje sumu.",
-      "negative_price": "Cena nemôže byť záporná."
+      "negative_price": "Cena nemôže byť záporná.",
+      "invalid_fiscal_refs": "Daňové referencie musia byť krátke textové hodnoty pod jednoduchými kľúčmi (písmená, číslice, podčiarknutie).",
+      "price_key_taken": "Iná cena už používa tento vyhľadávací kľúč alebo externé id."
     },
     "comingNext": "Fakturujte klientom a majte prehľad o tom, čo je zaplatené a čo ešte otvorené. Toto sa práve stavia.",
     "document": {
@@ -634,7 +636,12 @@
         "pricesHint": "Jedna na menu. Opakovaná cena určuje, ako často; je to nápoveda pre opakované faktúry, nič sa neúčtuje samo od seba.",
         "addPrice": "Pridať cenu",
         "noPrices": "Žiadne ceny. Názov aj tak vyplní položku; suma sa zadáva ručne.",
-        "nickname": "Označenie (voliteľné)"
+        "nickname": "Označenie (voliteľné)",
+        "fiscalRefs": "Daňové referencie",
+        "fiscalRefsHint": "Čo daňový doklad potrebuje pre každú položku. Navrhnuté podľa vašej jurisdikcie; pridajte akýkoľvek ďalší kľúč, ktorý potrebujete.",
+        "customRefKey": "iný kľúč (napr. hs_code)",
+        "addRef": "Pridať",
+        "fiscalRefsNone": "Pre tento druh tu nie je nič navrhnuté. Pridajte akýkoľvek kľúč, ktorý vaše daňové doklady potrebujú."
       },
       "action": {
         "archive": "Archivovať",
@@ -2135,7 +2142,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Ostatné krajiny",
-    "anyCountry": "Kdekoľvek inde"
+    "anyCountry": "Kdekoľvek inde",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / čiarový kód",
+      "service_code": "Kód služby (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Obecný kód služby",
+      "hs_code": "Kód HS",
+      "sat_product_code": "Kód produktu/služby SAT",
+      "sat_unit_code": "Kód jednotky SAT"
+    }
   },
   "common": {
     "selectTimezone": "Vyberte časové pásmo",

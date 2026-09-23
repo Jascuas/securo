@@ -363,6 +363,10 @@ class InvoiceLine(Base):
     price_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True), ForeignKey("product_prices.id", ondelete="SET NULL"), nullable=True
     )
+    # The product's fiscal references as they stood when the line was
+    # written (NCM, service code, HS code...). The line's own copy, for
+    # the same reason as every other value on it.
+    fiscal_refs: Mapped[Optional[dict[str, str]]] = mapped_column(JSON, nullable=True)
 
     invoice: Mapped["Invoice"] = relationship(back_populates="lines")
 

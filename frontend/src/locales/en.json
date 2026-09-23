@@ -339,7 +339,9 @@
       "interval_required": "A recurring price needs a cadence.",
       "currency_required": "A price needs a currency.",
       "unit_price_required": "A price needs an amount.",
-      "negative_price": "A price cannot be negative."
+      "negative_price": "A price cannot be negative.",
+      "invalid_fiscal_refs": "Fiscal references must be short text values under simple keys (letters, digits, underscore).",
+      "price_key_taken": "Another price already uses this lookup key or external id."
     },
     "comingNext": "Bill your clients and keep track of what has been paid and what is still open. This is the next thing being built.",
     "document": {
@@ -630,7 +632,12 @@
         "pricesHint": "One per currency. A recurring price says how often; it is a hint for recurring invoices, nothing is charged by itself.",
         "addPrice": "Add price",
         "noPrices": "No prices. The name still fills a line; the amount is typed.",
-        "nickname": "Label (optional)"
+        "nickname": "Label (optional)",
+        "fiscalRefs": "Fiscal references",
+        "fiscalRefsHint": "What a fiscal document needs per line. Suggested by your jurisdiction; add any other key you need.",
+        "customRefKey": "other key (e.g. hs_code)",
+        "addRef": "Add",
+        "fiscalRefsNone": "Nothing suggested for this kind here. Add any key your fiscal documents need."
       },
       "action": {
         "archive": "Archive",
@@ -2015,7 +2022,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Other countries",
-    "anyCountry": "Anywhere else"
+    "anyCountry": "Anywhere else",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / barcode",
+      "service_code": "Service code (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Municipal service code",
+      "hs_code": "HS code",
+      "sat_product_code": "SAT product/service code",
+      "sat_unit_code": "SAT unit code"
+    }
   },
   "common": {
     "selectTimezone": "Select timezone",

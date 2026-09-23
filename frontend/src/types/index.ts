@@ -1070,6 +1070,7 @@ export interface InvoiceLine {
    *  values below are still the line's own copy. */
   product_id: string | null
   price_id: string | null
+  fiscal_refs: Record<string, string> | null
   description: string
   quantity: string
   unit: string | null
@@ -1091,6 +1092,9 @@ export interface InvoiceLineInput {
    *  then edits the values: it is still that product, at their price. */
   product_id?: string | null
   price_id?: string | null
+  /** Fiscal references for the line. Filled from the product by the
+   *  server when omitted. */
+  fiscal_refs?: Record<string, string> | null
 }
 
 // ---------------------------------------------------------------------------
@@ -1109,10 +1113,20 @@ export interface ProductPrice {
   billing: PriceBilling
   interval: InvoiceScheduleFrequency | null
   nickname: string | null
+  /** A name of the workspace's own choosing, unique among its prices. */
+  lookup_key: string | null
   active: boolean
   external_source: string | null
   external_id: string | null
   created_at: string
+}
+
+/** A fiscal reference the workspace's jurisdiction suggests on a product. */
+export interface ProductFieldSpec {
+  key: string
+  label_key: string
+  /** Which product kinds it applies to; empty means both. */
+  kinds: ProductKind[]
 }
 
 export interface Product {
@@ -1126,6 +1140,9 @@ export interface Product {
   external_source: string | null
   external_id: string | null
   custom_fields: Record<string, string> | null
+  /** Fiscal references keyed as the jurisdiction suggests (`ncm`,
+   *  `service_code`, `hs_code`...); any key is accepted. */
+  fiscal_refs: Record<string, string> | null
   prices: ProductPrice[]
   created_at: string
   /** Derived by the server: how many invoices name this product. */

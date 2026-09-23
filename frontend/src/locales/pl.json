@@ -339,7 +339,9 @@
       "interval_required": "Cena cykliczna wymaga częstotliwości.",
       "currency_required": "Cena wymaga waluty.",
       "unit_price_required": "Cena wymaga kwoty.",
-      "negative_price": "Cena nie może być ujemna."
+      "negative_price": "Cena nie może być ujemna.",
+      "invalid_fiscal_refs": "Odniesienia podatkowe muszą być krótkimi wartościami tekstowymi pod prostymi kluczami (litery, cyfry, podkreślenie).",
+      "price_key_taken": "Inna cena już używa tego klucza wyszukiwania lub zewnętrznego identyfikatora."
     },
     "comingNext": "Wystawiaj faktury klientom i śledź, co zostało zapłacone, a co wciąż jest otwarte. To następna rzecz w budowie.",
     "document": {
@@ -634,7 +636,12 @@
         "pricesHint": "Jedna na walutę. Cena cykliczna określa, jak często; to podpowiedź dla faktur cyklicznych, nic nie jest naliczane samo z siebie.",
         "addPrice": "Dodaj cenę",
         "noPrices": "Brak cen. Nazwa i tak wypełni pozycję; kwotę wpisuje się ręcznie.",
-        "nickname": "Etykieta (opcjonalnie)"
+        "nickname": "Etykieta (opcjonalnie)",
+        "fiscalRefs": "Odniesienia podatkowe",
+        "fiscalRefsHint": "Czego dokument podatkowy wymaga w każdej pozycji. Sugerowane przez Twoją jurysdykcję; dodaj dowolny inny potrzebny klucz.",
+        "customRefKey": "inny klucz (np. hs_code)",
+        "addRef": "Dodaj",
+        "fiscalRefsNone": "Brak sugestii dla tego rodzaju. Dodaj dowolny klucz, którego potrzebują Twoje dokumenty podatkowe."
       },
       "action": {
         "archive": "Archiwizuj",
@@ -2106,7 +2113,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Inne kraje",
-    "anyCountry": "Gdziekolwiek indziej"
+    "anyCountry": "Gdziekolwiek indziej",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / kod kreskowy",
+      "service_code": "Kod usługi (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Gminny kod usługi",
+      "hs_code": "Kod HS",
+      "sat_product_code": "Kod produktu/usługi SAT",
+      "sat_unit_code": "Kod jednostki SAT"
+    }
   },
   "common": {
     "selectTimezone": "Wybierz strefę czasową",

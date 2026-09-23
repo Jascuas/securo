@@ -106,6 +106,14 @@ class Product(Base):
     external_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     custom_fields: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    # What a fiscal document will need per line: a goods classification,
+    # a service code, a barcode. Keys are suggested by the jurisdiction
+    # pack (`ncm`, `hs_code`, `service_code`...), values are text, and
+    # any key is storable because a pack suggests and never restricts.
+    # Copied onto the invoice line when the product fills it, so the
+    # document is drawn from what the line says, not from what the
+    # product says today.
+    fiscal_refs: Mapped[Optional[dict[str, str]]] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -135,6 +143,10 @@ class ProductPrice(Base):
             "external_id",
             name="uq_product_prices_workspace_external",
         ),
+        # A name of the workspace's own choosing (`pro_monthly`), unique
+        # among its prices, so an import or a script can find a price
+        # without knowing its id.
+        UniqueConstraint("workspace_id", "lookup_key", name="uq_product_prices_lookup_key"),
         Index("ix_product_prices_product", "product_id"),
         CheckConstraint("unit_price >= 0", name="ck_product_prices_unit_price"),
         CheckConstraint(
@@ -166,6 +178,7 @@ class ProductPrice(Base):
     # "Monthly", "Annual, 2 months free": a name for the picker when a
     # product has more than one price in a currency.
     nickname: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    lookup_key: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
     external_source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

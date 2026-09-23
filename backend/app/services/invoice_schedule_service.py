@@ -223,6 +223,7 @@ def _normalise_lines(lines: Any) -> list[dict[str, Any]]:
                 # deleted later must not stop the agreement from billing.
                 "product_id": str(line["product_id"]) if line.get("product_id") else None,
                 "price_id": str(line["price_id"]) if line.get("price_id") else None,
+                "fiscal_refs": dict(line["fiscal_refs"]) if line.get("fiscal_refs") else None,
             }
         )
     return out
@@ -887,6 +888,7 @@ def _lines_from_invoice(invoice: Invoice, fallback_description: str) -> list[dic
                 "tax_rate": line.tax_rate,
                 "product_id": line.product_id,
                 "price_id": line.price_id,
+                "fiscal_refs": line.fiscal_refs,
             }
             for line in invoice.lines
         ]

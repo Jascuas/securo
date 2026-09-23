@@ -578,6 +578,7 @@ def _build_line(invoice: Invoice, line: dict[str, Any], position: int) -> Invoic
         # this is called. Null on a line typed by hand.
         product_id=line.get("product_id"),
         price_id=line.get("price_id"),
+        fiscal_refs=line.get("fiscal_refs") or None,
     )
 
 

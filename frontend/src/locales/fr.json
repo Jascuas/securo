@@ -339,7 +339,9 @@
       "interval_required": "Un prix récurrent a besoin d'une fréquence.",
       "currency_required": "Un prix a besoin d'une devise.",
       "unit_price_required": "Un prix a besoin d'un montant.",
-      "negative_price": "Un prix ne peut pas être négatif."
+      "negative_price": "Un prix ne peut pas être négatif.",
+      "invalid_fiscal_refs": "Les références fiscales doivent être de courtes valeurs texte sous des clés simples (lettres, chiffres, tiret bas).",
+      "price_key_taken": "Un autre prix utilise déjà cette clé de recherche ou cet identifiant externe."
     },
     "comingNext": "Facturez vos clients et suivez ce qui a été payé et ce qui reste ouvert. C'est la prochaine chose en construction.",
     "document": {
@@ -630,7 +632,12 @@
         "pricesHint": "Un par devise. Un prix récurrent indique la fréquence ; c'est une indication pour les factures récurrentes, rien n'est facturé tout seul.",
         "addPrice": "Ajouter un prix",
         "noPrices": "Aucun prix. Le nom remplit quand même la ligne ; le montant est saisi à la main.",
-        "nickname": "Libellé (facultatif)"
+        "nickname": "Libellé (facultatif)",
+        "fiscalRefs": "Références fiscales",
+        "fiscalRefsHint": "Ce qu'un document fiscal exige par ligne. Suggéré par votre juridiction ; ajoutez toute autre clé dont vous avez besoin.",
+        "customRefKey": "autre clé (ex. hs_code)",
+        "addRef": "Ajouter",
+        "fiscalRefsNone": "Rien n'est suggéré pour ce type ici. Ajoutez toute clé dont vos documents fiscaux ont besoin."
       },
       "action": {
         "archive": "Archiver",
@@ -2016,7 +2023,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Autres pays",
-    "anyCountry": "Ailleurs"
+    "anyCountry": "Ailleurs",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / code-barres",
+      "service_code": "Code de service (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Code de service municipal",
+      "hs_code": "Code SH (HS)",
+      "sat_product_code": "Code produit/service SAT",
+      "sat_unit_code": "Code d'unité SAT"
+    }
   },
   "common": {
     "selectTimezone": "Choisir un fuseau horaire",

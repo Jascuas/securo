@@ -5,9 +5,11 @@
     gateway import converges on.
   - `product_prices` is how each one is charged: currency, amount, an
     optional tax rate, and an optional cadence. One product, many prices.
-  - `invoice_lines.product_id` / `price_id` say where a line came from.
-    Provenance only: the line keeps its own copy of every value, so
-    nothing about existing invoices changes and both columns start null.
+  - `invoice_lines.product_id` / `price_id` say where a line came from,
+    and `fiscal_refs` is the product's fiscal references (a goods or
+    service classification) as copied at that moment. Provenance and a
+    copy: the line keeps its own values, so nothing about existing
+    invoices changes and every new column starts null.
 
 Revision ID: 094
 Revises: 093
@@ -37,6 +39,7 @@ def upgrade() -> None:
         sa.Column("external_source", sa.String(length=50), nullable=True),
         sa.Column("external_id", sa.String(length=255), nullable=True),
         sa.Column("custom_fields", sa.JSON(), nullable=True),
+        sa.Column("fiscal_refs", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["workspace_id"], ["workspaces.id"], ondelete="CASCADE"),
@@ -62,6 +65,7 @@ def upgrade() -> None:
         sa.Column("billing", sa.String(length=20), server_default="one_time", nullable=False),
         sa.Column("interval", sa.String(length=20), nullable=True),
         sa.Column("nickname", sa.String(length=100), nullable=True),
+        sa.Column("lookup_key", sa.String(length=200), nullable=True),
         sa.Column("active", sa.Boolean(), server_default="true", nullable=False),
         sa.Column("external_source", sa.String(length=50), nullable=True),
         sa.Column("external_id", sa.String(length=255), nullable=True),
@@ -75,6 +79,7 @@ def upgrade() -> None:
             "external_id",
             name="uq_product_prices_workspace_external",
         ),
+        sa.UniqueConstraint("workspace_id", "lookup_key", name="uq_product_prices_lookup_key"),
         sa.CheckConstraint("unit_price >= 0", name="ck_product_prices_unit_price"),
         sa.CheckConstraint(
             "billing IN ('one_time', 'recurring')", name="ck_product_prices_billing"
@@ -95,6 +100,7 @@ def upgrade() -> None:
     op.add_column(
         "invoice_lines", sa.Column("price_id", postgresql.UUID(as_uuid=True), nullable=True)
     )
+    op.add_column("invoice_lines", sa.Column("fiscal_refs", sa.JSON(), nullable=True))
     op.create_foreign_key(
         "fk_invoice_lines_product_id",
         "invoice_lines",
@@ -120,6 +126,7 @@ def downgrade() -> None:
     op.drop_index("ix_invoice_lines_product_id", table_name="invoice_lines")
     op.drop_constraint("fk_invoice_lines_price_id", "invoice_lines", type_="foreignkey")
     op.drop_constraint("fk_invoice_lines_product_id", "invoice_lines", type_="foreignkey")
+    op.drop_column("invoice_lines", "fiscal_refs")
     op.drop_column("invoice_lines", "price_id")
     op.drop_column("invoice_lines", "product_id")
 

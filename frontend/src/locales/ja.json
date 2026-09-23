@@ -339,7 +339,9 @@
       "interval_required": "定期価格には頻度が必要です。",
       "currency_required": "価格には通貨が必要です。",
       "unit_price_required": "価格には金額が必要です。",
-      "negative_price": "価格をマイナスにはできません。"
+      "negative_price": "価格をマイナスにはできません。",
+      "invalid_fiscal_refs": "税務参照コードは、シンプルなキー(英字、数字、アンダースコア)の下にある短いテキスト値である必要があります。",
+      "price_key_taken": "別の価格がすでにこの検索キーまたは外部IDを使用しています。"
     },
     "comingNext": "クライアントに請求し、支払い済みのものと未払いのものを管理します。現在開発中の次の機能です。",
     "document": {
@@ -630,7 +632,12 @@
         "pricesHint": "通貨ごとに1つ。定期価格は頻度を示します。定期請求書のためのヒントであり、それだけで請求されることはありません。",
         "addPrice": "価格を追加",
         "noPrices": "価格がありません。名前は明細行に入りますが、金額は手入力になります。",
-        "nickname": "ラベル(任意)"
+        "nickname": "ラベル(任意)",
+        "fiscalRefs": "税務参照コード",
+        "fiscalRefsHint": "税務書類が明細ごとに必要とする項目です。お住まいの管轄区域に基づいて提案されます。必要な他のキーも追加できます。",
+        "customRefKey": "その他のキー(例: hs_code)",
+        "addRef": "追加",
+        "fiscalRefsNone": "この種類にはここでの提案はありません。税務書類に必要なキーを追加してください。"
       },
       "action": {
         "archive": "アーカイブ",
@@ -2015,7 +2022,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "その他の国",
-    "anyCountry": "その他すべての国"
+    "anyCountry": "その他すべての国",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / バーコード",
+      "service_code": "サービスコード(LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "市町村サービスコード",
+      "hs_code": "HSコード",
+      "sat_product_code": "SAT製品/サービスコード",
+      "sat_unit_code": "SAT単位コード"
+    }
   },
   "common": {
     "selectTimezone": "タイムゾーンを選択",

@@ -339,7 +339,9 @@
       "interval_required": "Ein wiederkehrender Preis braucht einen Rhythmus.",
       "currency_required": "Ein Preis braucht eine Währung.",
       "unit_price_required": "Ein Preis braucht einen Betrag.",
-      "negative_price": "Ein Preis kann nicht negativ sein."
+      "negative_price": "Ein Preis kann nicht negativ sein.",
+      "invalid_fiscal_refs": "Steuerliche Referenzen müssen kurze Textwerte unter einfachen Schlüsseln sein (Buchstaben, Ziffern, Unterstrich).",
+      "price_key_taken": "Ein anderer Preis verwendet diesen Suchschlüssel oder diese externe ID bereits."
     },
     "comingNext": "Stelle deinen Kunden Rechnungen und behalte im Blick, was bezahlt ist und was offen bleibt. Das ist das Nächste, was gebaut wird.",
     "document": {
@@ -630,7 +632,12 @@
         "pricesHint": "Einer pro Währung. Ein wiederkehrender Preis gibt an, wie oft; er ist ein Hinweis für wiederkehrende Rechnungen, von selbst wird nichts berechnet.",
         "addPrice": "Preis hinzufügen",
         "noPrices": "Keine Preise. Der Name füllt die Position trotzdem aus; der Betrag wird eingetippt.",
-        "nickname": "Bezeichnung (optional)"
+        "nickname": "Bezeichnung (optional)",
+        "fiscalRefs": "Steuerliche Referenzen",
+        "fiscalRefsHint": "Was ein Steuerbeleg pro Position braucht. Von Ihrer Steuerzone vorgeschlagen; fügen Sie jeden weiteren Schlüssel hinzu, den Sie brauchen.",
+        "customRefKey": "anderer Schlüssel (z. B. hs_code)",
+        "addRef": "Hinzufügen",
+        "fiscalRefsNone": "Für diese Art wird hier nichts vorgeschlagen. Fügen Sie jeden Schlüssel hinzu, den Ihre Steuerbelege benötigen."
       },
       "action": {
         "archive": "Archivieren",
@@ -2016,7 +2023,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Andere Länder",
-    "anyCountry": "Anderswo"
+    "anyCountry": "Anderswo",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / Barcode",
+      "service_code": "Dienstleistungscode (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Kommunaler Dienstleistungscode",
+      "hs_code": "HS-Code",
+      "sat_product_code": "SAT-Produkt-/Dienstleistungscode",
+      "sat_unit_code": "SAT-Einheitencode"
+    }
   },
   "common": {
     "selectTimezone": "Zeitzone wählen",

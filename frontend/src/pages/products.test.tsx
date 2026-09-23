@@ -18,11 +18,13 @@ const api = vi.hoisted(() => ({
     removePrice: vi.fn(),
   },
   invoices: { settings: vi.fn() },
+  fiscal: { productFields: vi.fn() },
 }))
 
 vi.mock('@/lib/api', () => ({
   products: api.products,
   invoices: api.invoices,
+  fiscal: api.fiscal,
 }))
 
 vi.mock('@/hooks/use-display-locale', () => ({
@@ -55,15 +57,16 @@ function product(overrides: Partial<Product> = {}): Product {
     external_source: null,
     external_id: null,
     custom_fields: null,
+    fiscal_refs: null,
     prices: [
       {
         id: 'usd', product_id: 'hour', currency: 'USD', unit_price: '200.00', tax_rate: null,
-        billing: 'one_time', interval: null, nickname: null, active: true,
+        billing: 'one_time', interval: null, nickname: null, lookup_key: null, active: true,
         external_source: null, external_id: null, created_at: '2026-01-01T00:00:00Z',
       },
       {
         id: 'eur', product_id: 'hour', currency: 'EUR', unit_price: '900.00', tax_rate: null,
-        billing: 'recurring', interval: 'monthly', nickname: 'Monthly', active: true,
+        billing: 'recurring', interval: 'monthly', nickname: 'Monthly', lookup_key: null, active: true,
         external_source: null, external_id: null, created_at: '2026-01-02T00:00:00Z',
       },
     ],
@@ -82,6 +85,7 @@ describe('ProductsPage', () => {
       product({ id: 'logo', name: 'Logo design', kind: 'product', description: null, unit: null, prices: [], invoice_count: 0 }),
     ])
     api.invoices.settings.mockResolvedValue({ tax_fields: 'hidden' })
+    api.fiscal.productFields.mockResolvedValue({ jurisdiction: null, fields: [] })
   })
 
   it('lists the catalog with every live price and what each product is worth to invoices', async () => {
@@ -135,6 +139,7 @@ describe('ProductsPage', () => {
       kind: 'service',
       unit: 'month',
       description: null,
+      fiscal_refs: null,
       prices: [{ currency: 'USD', unit_price: '3000', tax_rate: null, billing: 'one_time', interval: null, nickname: null }],
     })
   })
@@ -148,6 +153,7 @@ describe('ProductsPage editing', () => {
     api.invoices.settings.mockResolvedValue({ tax_fields: 'hidden' })
     api.products.update.mockResolvedValue(product())
     api.products.updatePrice.mockResolvedValue(product())
+    api.fiscal.productFields.mockResolvedValue({ jurisdiction: null, fields: [] })
   })
 
   it('archives an existing price instead of deleting it, and never deletes from the dialog', async () => {
@@ -172,6 +178,60 @@ describe('ProductsPage editing', () => {
     await user.click(screen.getByTestId('product-save'))
     await screen.findAllByTestId('product-row')
     expect(screen.queryByTestId('product-name-input')).not.toBeInTheDocument()
+  })
+})
+
+describe('ProductsPage fiscal references', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    canWrite = true
+    api.products.list.mockResolvedValue([])
+    api.invoices.settings.mockResolvedValue({ tax_fields: 'hidden' })
+    api.products.create.mockResolvedValue(product())
+    api.fiscal.productFields.mockResolvedValue({
+      jurisdiction: 'BR',
+      fields: [
+        { key: 'ncm', label_key: 'fiscal.productField.ncm', kinds: ['product'] },
+        { key: 'service_code', label_key: 'fiscal.productField.service_code', kinds: ['service'] },
+      ],
+    })
+  })
+
+  it('offers the keys the jurisdiction suggests for the kind, plus any key by hand', async () => {
+    const { user } = renderWithProviders(<ProductsPage />, { route: '/invoices/products' })
+    await screen.findByTestId('products-empty')
+    await user.click(screen.getByTestId('product-new-button'))
+    // A service: the service code is offered, the goods code is not.
+    expect(await screen.findByTestId('product-ref-service_code')).toBeInTheDocument()
+    expect(screen.queryByTestId('product-ref-ncm')).not.toBeInTheDocument()
+    await user.type(screen.getByTestId('product-name-input'), 'Design')
+    await user.type(screen.getByTestId('product-ref-service_code'), ' 1.05 ')
+    // A key the pack never mentions, typed in any case.
+    await user.type(screen.getByTestId('product-ref-custom-key'), 'HS_code')
+    await user.click(screen.getByTestId('product-ref-add'))
+    await user.type(screen.getByTestId('product-ref-hs_code'), '8471')
+    await user.click(screen.getByTestId('product-save'))
+    expect(api.products.create).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Design', fiscal_refs: { service_code: '1.05', hs_code: '8471' } }),
+    )
+  })
+
+  it('refuses a key that is not a key', async () => {
+    const { user } = renderWithProviders(<ProductsPage />, { route: '/invoices/products' })
+    await screen.findByTestId('products-empty')
+    await user.click(screen.getByTestId('product-new-button'))
+    await screen.findByTestId('product-ref-custom-key')
+    await user.type(screen.getByTestId('product-ref-custom-key'), 'has space')
+    expect(screen.getByTestId('product-ref-add')).toBeDisabled()
+  })
+
+  it('shows the section with an add row when the jurisdiction suggests nothing', async () => {
+    api.fiscal.productFields.mockResolvedValue({ jurisdiction: null, fields: [] })
+    const { user } = renderWithProviders(<ProductsPage />, { route: '/invoices/products' })
+    await screen.findByTestId('products-empty')
+    await user.click(screen.getByTestId('product-new-button'))
+    expect(await screen.findByTestId('product-ref-custom-key')).toBeInTheDocument()
+    expect(screen.getByText(t('invoices.products.field.fiscalRefsNone'))).toBeInTheDocument()
   })
 })
 

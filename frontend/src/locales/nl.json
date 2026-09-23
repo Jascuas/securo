@@ -339,7 +339,9 @@
       "interval_required": "Een terugkerende prijs heeft een frequentie nodig.",
       "currency_required": "Een prijs heeft een valuta nodig.",
       "unit_price_required": "Een prijs heeft een bedrag nodig.",
-      "negative_price": "Een prijs kan niet negatief zijn."
+      "negative_price": "Een prijs kan niet negatief zijn.",
+      "invalid_fiscal_refs": "Fiscale referenties moeten korte tekstwaarden zijn onder eenvoudige sleutels (letters, cijfers, underscore).",
+      "price_key_taken": "Een andere prijs gebruikt deze zoeksleutel of externe id al."
     },
     "comingNext": "Factureer uw klanten en houd bij wat er is betaald en wat er nog open staat. Dit is het volgende dat gebouwd wordt.",
     "document": {
@@ -630,7 +632,12 @@
         "pricesHint": "Eén per valuta. Een terugkerende prijs geeft aan hoe vaak; het is een hint voor terugkerende facturen, er wordt uit zichzelf niets in rekening gebracht.",
         "addPrice": "Prijs toevoegen",
         "noPrices": "Geen prijzen. De naam vult de regel toch in; het bedrag typ je zelf.",
-        "nickname": "Label (optioneel)"
+        "nickname": "Label (optioneel)",
+        "fiscalRefs": "Fiscale referenties",
+        "fiscalRefsHint": "Wat een fiscaal document per regel nodig heeft. Voorgesteld op basis van uw jurisdictie; voeg elke andere sleutel toe die u nodig heeft.",
+        "customRefKey": "andere sleutel (bijv. hs_code)",
+        "addRef": "Toevoegen",
+        "fiscalRefsNone": "Niets voorgesteld voor dit type hier. Voeg elke sleutel toe die uw fiscale documenten nodig hebben."
       },
       "action": {
         "archive": "Archiveren",
@@ -2017,7 +2024,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Andere landen",
-    "anyCountry": "Ergens anders"
+    "anyCountry": "Ergens anders",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / barcode",
+      "service_code": "Dienstcode (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Gemeentelijke dienstcode",
+      "hs_code": "HS-code",
+      "sat_product_code": "SAT product-/dienstcode",
+      "sat_unit_code": "SAT eenheidscode"
+    }
   },
   "common": {
     "selectTimezone": "Tijdzone kiezen",

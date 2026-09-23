@@ -17,6 +17,7 @@ simply go.
 """
 from __future__ import annotations
 
+import re
 import uuid
 from decimal import Decimal
 from typing import Any, Optional
@@ -36,6 +37,29 @@ from app.models.product import (
 from app.services.invoice_service import InvoiceError
 
 ZERO = Decimal("0.00")
+
+_REF_KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
+
+
+def _clean_fiscal_refs(value: Any) -> Optional[dict[str, str]]:
+    """Fiscal references as stored: lowercase keys, trimmed text values,
+    empty values dropped. Any key is accepted (the pack suggests, it
+    never restricts); a key that is not a key is refused."""
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise InvoiceError("invalid_fiscal_refs", "Fiscal references must be a map of text values")
+    out: dict[str, str] = {}
+    for key, raw in value.items():
+        k = str(key).strip().lower()
+        if not _REF_KEY.match(k):
+            raise InvoiceError("invalid_fiscal_refs", f"{key!r} is not a valid reference key")
+        text = "" if raw is None else str(raw).strip()
+        if len(text) > 100:
+            raise InvoiceError("invalid_fiscal_refs", f"The value for {k} is too long")
+        if text:
+            out[k] = text
+    return out or None
 
 
 # ---------------------------------------------------------------------------
@@ -159,6 +183,7 @@ async def create_product(
         external_source=data.get("external_source"),
         external_id=data.get("external_id"),
         custom_fields=data.get("custom_fields"),
+        fiscal_refs=_clean_fiscal_refs(data.get("fiscal_refs")),
     )
     product.prices = []
     session.add(product)
@@ -187,6 +212,8 @@ async def update_product(session: AsyncSession, product: Product, data: dict[str
     for field in ("description", "unit", "custom_fields"):
         if field in data:
             setattr(product, field, data[field] or None)
+    if "fiscal_refs" in data:
+        product.fiscal_refs = _clean_fiscal_refs(data["fiscal_refs"])
     if "active" in data and data["active"] is not None:
         product.active = bool(data["active"])
     await session.flush()
@@ -217,11 +244,17 @@ def _fill_price(price: ProductPrice, data: dict[str, Any]) -> None:
     if "currency" in data and data["currency"]:
         price.currency = str(data["currency"]).upper()
     if "unit_price" in data and data["unit_price"] is not None:
-        price.unit_price = Decimal(str(data["unit_price"]))
+        # Quantised on the way in, so the row reads the same before and
+        # after a round trip through the database.
+        price.unit_price = Decimal(str(data["unit_price"])).quantize(Decimal("0.01"))
         if price.unit_price < ZERO:
             raise InvoiceError("negative_price", "A price cannot be negative")
     if "tax_rate" in data:
-        price.tax_rate = Decimal(str(data["tax_rate"])) if data["tax_rate"] is not None else None
+        price.tax_rate = (
+            Decimal(str(data["tax_rate"])).quantize(Decimal("0.0001"))
+            if data["tax_rate"] is not None
+            else None
+        )
     if "billing" in data and data["billing"] is not None:
         if data["billing"] not in PRICE_BILLINGS:
             raise InvoiceError("invalid_billing", "Unknown billing kind")
@@ -230,6 +263,8 @@ def _fill_price(price: ProductPrice, data: dict[str, Any]) -> None:
         price.interval = data["interval"] or None
     if "nickname" in data:
         price.nickname = (data["nickname"] or "").strip() or None
+    if "lookup_key" in data:
+        price.lookup_key = (data["lookup_key"] or "").strip() or None
     if "active" in data and data["active"] is not None:
         price.active = bool(data["active"])
 
@@ -264,7 +299,9 @@ async def add_price(session: AsyncSession, product: Product, data: dict[str, Any
     except IntegrityError:
         await session.rollback()
         raise InvoiceError(
-            "already_imported", "This price is already here", status_code=409
+            "price_key_taken",
+            "A price with this external id or lookup key is already here",
+            status_code=409,
         ) from None
     return price
 
@@ -275,8 +312,25 @@ async def update_price(
     if price.product_id != product.id:
         raise InvoiceError("price_not_found", "Price not found on this product", 404)
     _fill_price(price, data)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        raise InvoiceError(
+            "price_key_taken", "Another price already uses this lookup key", status_code=409
+        ) from None
     return price
+
+
+async def find_price_by_lookup_key(
+    session: AsyncSession, workspace_id: uuid.UUID, lookup_key: str
+) -> Optional[ProductPrice]:
+    result = await session.execute(
+        select(ProductPrice).where(
+            ProductPrice.workspace_id == workspace_id, ProductPrice.lookup_key == lookup_key
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def delete_price(session: AsyncSession, product: Product, price: ProductPrice) -> None:
@@ -330,14 +384,6 @@ async def resolve_lines(
     wanted_products = {p for p in (_as_uuid(line.get("product_id")) for line in lines) if p}
     wanted_prices = {p for p in (_as_uuid(line.get("price_id")) for line in lines) if p}
 
-    products: dict[uuid.UUID, Product] = {}
-    if wanted_products:
-        rows = await session.execute(
-            select(Product).where(
-                Product.workspace_id == workspace_id, Product.id.in_(wanted_products)
-            )
-        )
-        products = {p.id: p for p in rows.unique().scalars().all()}
     prices: dict[uuid.UUID, ProductPrice] = {}
     if wanted_prices:
         rows = await session.execute(
@@ -346,6 +392,16 @@ async def resolve_lines(
             )
         )
         prices = {p.id: p for p in rows.scalars().all()}
+        # A line that only named a price still came from that product.
+        wanted_products |= {p.product_id for p in prices.values()}
+    products: dict[uuid.UUID, Product] = {}
+    if wanted_products:
+        rows = await session.execute(
+            select(Product).where(
+                Product.workspace_id == workspace_id, Product.id.in_(wanted_products)
+            )
+        )
+        products = {p.id: p for p in rows.unique().scalars().all()}
 
     out: list[dict[str, Any]] = []
     for raw in lines:
@@ -368,5 +424,14 @@ async def resolve_lines(
                 product_id = price.product_id
         line["product_id"] = product_id
         line["price_id"] = price_id
+        # The product's fiscal references travel with the line, copied
+        # now so the document later reads what the line says. A line
+        # that brought its own keeps them.
+        if line.get("fiscal_refs"):
+            line["fiscal_refs"] = _clean_fiscal_refs(line["fiscal_refs"])
+        elif product_id and product_id in products:
+            line["fiscal_refs"] = dict(products[product_id].fiscal_refs or {}) or None
+        else:
+            line["fiscal_refs"] = None
         out.append(line)
     return out

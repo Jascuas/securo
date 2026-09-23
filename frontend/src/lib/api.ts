@@ -31,6 +31,7 @@ import type {
   InvoiceScheduleStatus,
   InvoiceScheduleSummary,
   Product,
+  ProductFieldSpec,
   ProductKind,
   PriceBilling,
   InvoiceLineInput,
@@ -766,6 +767,11 @@ export const fiscal = {
     const { data } = await api.get('/fiscal/tax-id-kinds')
     return data
   },
+  /** Fiscal references the workspace's jurisdiction suggests on a product. */
+  productFields: async (): Promise<{ jurisdiction: string | null; fields: ProductFieldSpec[] }> => {
+    const { data } = await api.get('/fiscal/product-fields')
+    return data
+  },
 }
 
 export interface PayeeWritePayload {
@@ -789,6 +795,7 @@ export interface PricePayload {
   billing?: PriceBilling
   interval?: InvoiceScheduleFrequency | null
   nickname?: string | null
+  lookup_key?: string | null
 }
 
 export interface ProductPayload {
@@ -797,6 +804,7 @@ export interface ProductPayload {
   kind?: ProductKind
   unit?: string | null
   active?: boolean
+  fiscal_refs?: Record<string, string> | null
   prices?: PricePayload[]
 }
 

@@ -339,7 +339,9 @@
       "interval_required": "Um preço recorrente precisa de uma frequência.",
       "currency_required": "Um preço precisa de uma moeda.",
       "unit_price_required": "Um preço precisa de um valor.",
-      "negative_price": "Um preço não pode ser negativo."
+      "negative_price": "Um preço não pode ser negativo.",
+      "invalid_fiscal_refs": "As referências fiscais devem ser textos curtos sob chaves simples (letras, dígitos, sublinhado).",
+      "price_key_taken": "Outro preço já usa esta chave de pesquisa ou id externo."
     },
     "comingNext": "Cobra os teus clientes e acompanha o que já foi pago e o que continua em aberto. É a próxima coisa a ser construída.",
     "document": {
@@ -630,7 +632,12 @@
         "pricesHint": "Um por moeda. Um preço recorrente indica a frequência; é uma sugestão para cobranças recorrentes, nada é cobrado por si só.",
         "addPrice": "Adicionar preço",
         "noPrices": "Sem preços. O nome preenche a linha na mesma; o valor é escrito à mão.",
-        "nickname": "Rótulo (opcional)"
+        "nickname": "Rótulo (opcional)",
+        "fiscalRefs": "Referências fiscais",
+        "fiscalRefsHint": "O que um documento fiscal precisa por linha. Sugerido pela sua jurisdição; adicione qualquer outra chave de que precise.",
+        "customRefKey": "outra chave (ex.: hs_code)",
+        "addRef": "Adicionar",
+        "fiscalRefsNone": "Nada sugerido para este tipo aqui. Adicione qualquer chave de que os seus documentos fiscais precisem."
       },
       "action": {
         "archive": "Arquivar",
@@ -2016,7 +2023,18 @@
       "uscc": "USCC"
     },
     "otherCountries": "Outros países",
-    "anyCountry": "Qualquer outro lugar"
+    "anyCountry": "Qualquer outro lugar",
+    "productField": {
+      "ncm": "NCM",
+      "cest": "CEST",
+      "gtin": "GTIN / código de barras",
+      "service_code": "Código de serviço (LC 116)",
+      "nbs": "NBS",
+      "municipal_service_code": "Código de serviço municipal",
+      "hs_code": "Código HS",
+      "sat_product_code": "Código de produto/serviço SAT",
+      "sat_unit_code": "Código de unidade SAT"
+    }
   },
   "common": {
     "selectTimezone": "Selecionar fuso horário",

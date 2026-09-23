@@ -33,7 +33,7 @@ import { useDisplayLocale } from '@/hooks/use-display-locale'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
-import { invoices as invoicesApi, products as productsApi, type PricePayload } from '@/lib/api'
+import { fiscal as fiscalApi, invoices as invoicesApi, products as productsApi, type PricePayload } from '@/lib/api'
 import { invoiceErrorKey } from '@/lib/invoice-utils'
 import { FREQUENCIES } from '@/lib/invoice-schedule-utils'
 import { productActions } from '@/lib/product-utils'
@@ -312,11 +312,24 @@ export function ProductDialog({
   })
   const showTax = (settings?.tax_fields ?? 'hidden') !== 'hidden'
   const defaultCurrency = user?.preferences?.currency_display ?? 'USD'
+  // What this workspace's jurisdiction asks for on a catalog item. A
+  // suggestion: the keys below are offered, and any other key can be
+  // added by hand, so a Brazilian studio selling to Berlin can carry an
+  // HS code beside its NCM.
+  const { data: suggested } = useQuery({
+    queryKey: ['fiscal', 'product-fields'],
+    queryFn: fiscalApi.productFields,
+    enabled: open,
+  })
 
   const [name, setName] = useState(product?.name ?? '')
   const [kind, setKind] = useState<ProductKind>(product?.kind ?? 'service')
   const [unit, setUnit] = useState(product?.unit ?? '')
   const [description, setDescription] = useState(product?.description ?? '')
+  const [refs, setRefs] = useState<{ key: string; value: string }[]>(() =>
+    Object.entries(product?.fiscal_refs ?? {}).map(([key, value]) => ({ key, value })),
+  )
+  const [customKey, setCustomKey] = useState('')
   const [prices, setPrices] = useState<PriceRow[]>(
     product
       ? product.prices.map((p) => ({
@@ -343,7 +356,16 @@ export function ProductDialog({
   const mutation = useMutation({
     mutationFn: async () => {
       const filled = prices.filter((row) => row.unit_price !== '')
-      const base = { name, kind, unit: unit || null, description: description || null }
+      const fiscal_refs = Object.fromEntries(
+        refs.filter((r) => r.key.trim() && r.value.trim()).map((r) => [r.key.trim().toLowerCase(), r.value.trim()]),
+      )
+      const base = {
+        name,
+        kind,
+        unit: unit || null,
+        description: description || null,
+        fiscal_refs: Object.keys(fiscal_refs).length ? fiscal_refs : null,
+      }
       if (!product) {
         return productsApi.create({ ...base, prices: filled.map(toPayload) })
       }
@@ -419,6 +441,89 @@ export function ProductDialog({
             <Input id="product-description" data-testid="product-description-input" value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
+          {/* Fiscal references. The keys the jurisdiction suggests for
+              this kind are offered as fields; anything else is added by
+              key, and an empty value drops the key. With nothing
+              suggested the section is one line and an "add" row, so a
+              workspace whose country has no pack yet can still carry
+              what its documents need. */}
+          {(() => {
+            const offered = (suggested?.fields ?? []).filter(
+              (f) => f.kinds.length === 0 || f.kinds.includes(kind),
+            )
+            const offeredKeys = new Set(offered.map((f) => f.key))
+            const extra = refs.filter((r) => !offeredKeys.has(r.key))
+            const valueOf = (key: string) => refs.find((r) => r.key === key)?.value ?? ''
+            const setRef = (key: string, value: string) =>
+              setRefs((prev) =>
+                prev.some((r) => r.key === key)
+                  ? prev.map((r) => (r.key === key ? { ...r, value } : r))
+                  : [...prev, { key, value }],
+              )
+            const anyField = offered.length > 0 || extra.length > 0
+            return (
+              <div className="space-y-2" data-testid="product-fiscal-refs">
+                <Label>{t('invoices.products.field.fiscalRefs')}</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  {anyField
+                    ? t('invoices.products.field.fiscalRefsHint')
+                    : t('invoices.products.field.fiscalRefsNone')}
+                </p>
+                <div className={cn('grid grid-cols-2 sm:grid-cols-3 gap-3', !anyField && 'hidden')}>
+                  {offered.map((f) => (
+                    <div key={f.key} className="space-y-1.5">
+                      <Label htmlFor={`ref-${f.key}`} className="text-xs">{t(f.label_key, f.key)}</Label>
+                      <Input
+                        id={`ref-${f.key}`}
+                        data-testid={`product-ref-${f.key}`}
+                        className="h-9"
+                        value={valueOf(f.key)}
+                        onChange={(e) => setRef(f.key, e.target.value)}
+                        maxLength={100}
+                      />
+                    </div>
+                  ))}
+                  {extra.map((r) => (
+                    <div key={r.key} className="space-y-1.5">
+                      <Label htmlFor={`ref-${r.key}`} className="text-xs">{t(`fiscal.productField.${r.key}`, r.key)}</Label>
+                      <Input
+                        id={`ref-${r.key}`}
+                        data-testid={`product-ref-${r.key}`}
+                        className="h-9"
+                        value={r.value}
+                        onChange={(e) => setRef(r.key, e.target.value)}
+                        maxLength={100}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="h-8 w-48"
+                    placeholder={t('invoices.products.field.customRefKey')}
+                    value={customKey}
+                    onChange={(e) => setCustomKey(e.target.value)}
+                    data-testid="product-ref-custom-key"
+                    maxLength={40}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={!/^[a-z][a-z0-9_]*$/.test(customKey.trim().toLowerCase()) || refs.some((r) => r.key === customKey.trim().toLowerCase())}
+                    onClick={() => {
+                      setRef(customKey.trim().toLowerCase(), '')
+                      setCustomKey('')
+                    }}
+                    data-testid="product-ref-add"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    {t('invoices.products.field.addRef')}
+                  </Button>
+                </div>
+              </div>
+            )
+          })()}
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>{t('invoices.products.field.prices')}</Label>
@@ -453,7 +558,7 @@ export function ProductDialog({
                     <SelectContent>
                       <SelectItem value="one_time">{t('invoices.products.billing.one_time')}</SelectItem>
                       {FREQUENCIES.map((f) => (
-                        <SelectItem key={f} value={f}>{t('invoices.products.billing.every', { interval: t(`invoices.schedules.frequency.${f}`).toLowerCase() })}</SelectItem>
+                        <SelectItem key={f} value={f}>{t('invoices.products.billing.every', { interval: t(`invoices.products.per.${f}`) })}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
