@@ -322,7 +322,10 @@
       "invoice_not_found": "Rechnung nicht gefunden.",
       "no_term": "Für diese Periode gilt keine Kondition.",
       "no_author": "Diese Vereinbarung hat keinen Autor, in dessen Namen Rechnungen ausgestellt werden.",
-      "negative_discount": "Ein Rabatt kann nicht negativ sein."
+      "negative_discount": "Ein Rabatt kann nicht negativ sein.",
+      "first_term": "Der Preis, der ab Beginn gilt, kann weder verschoben noch entfernt werden. Ändern Sie ihn oder fügen Sie einen neuen Preis ab einem späteren Datum hinzu.",
+      "not_receivable": "Nur eine von Ihnen ausgestellte Rechnung kann zu einer Vereinbarung gehören.",
+      "period_already_issued": "Dieser Zeitraum wurde gerade ausgestellt. Aktualisieren Sie die Seite, um ihn zu sehen."
     },
     "comingNext": "Stelle deinen Kunden Rechnungen und behalte im Blick, was bezahlt ist und was offen bleibt. Das ist das Nächste, was gebaut wird.",
     "document": {

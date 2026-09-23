@@ -964,3 +964,99 @@ class TestWorkerTask:
         from app.tasks import invoice_schedule_tasks as task
 
         assert await task._generate_one(TestSessionLocal, uuid.uuid4()) == 0
+
+
+class TestReviewRegressions:
+    """One test per hole found in review, each failing if it reopens."""
+
+    @pytest.mark.asyncio
+    async def test_the_first_term_cannot_be_deleted_or_moved(self, session, ws_id, test_user):
+        """Deleting or moving the price in force from the start would leave
+        the first periods unpriced, and the job would pause the agreement."""
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 10, 5))
+        first = s.terms[0]
+        await svc.add_term(session, s, effective_from=date(2027, 1, 1), lines=[{"description": "R", "unit_price": "3500"}])
+        with pytest.raises(InvoiceError) as exc:
+            await svc.delete_term(session, s, first)
+        assert exc.value.code == "first_term"
+        with pytest.raises(InvoiceError) as exc:
+            await svc.update_term(session, s, first, effective_from=date(2026, 11, 1))
+        assert exc.value.code == "first_term"
+        # Its price may still change, and the later term may still go.
+        await svc.update_term(session, s, first, lines=[{"description": "R", "unit_price": "3100"}])
+        assert first.total == Decimal("3100.00")
+        await svc.delete_term(session, s, s.terms[1])
+        [october] = await svc.generate_due(session, s, today=date(2026, 10, 5))
+        assert october.total == Decimal("3100.00")
+
+    @pytest.mark.asyncio
+    async def test_moving_the_start_onto_a_later_term_is_refused_not_a_500(self, session, ws_id, test_user):
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 10, 5))
+        await svc.add_term(session, s, effective_from=date(2027, 1, 1), lines=[{"description": "R", "unit_price": "3500"}])
+        with pytest.raises(InvoiceError) as exc:
+            await svc.update_schedule(session, s, {"start_date": date(2027, 1, 1)}, today=TODAY)
+        assert exc.value.code == "term_before_start"
+
+    @pytest.mark.asyncio
+    async def test_resuming_after_failures_bills_the_period_that_failed(self, session, ws_id, test_user):
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 10, 5))
+        with patch.object(svc, "_emit", side_effect=RuntimeError("storage down")):
+            for _ in range(3):
+                with pytest.raises(RuntimeError):
+                    await svc.generate_due(session, s, today=date(2026, 10, 5))
+        assert s.pause_reason == "failures"
+        await svc.resume_schedule(session, s, today=date(2026, 10, 10))
+        assert s.next_sequence == 1
+        [october] = await svc.generate_due(session, s, today=date(2026, 10, 10))
+        assert october.period_start == date(2026, 10, 5)
+
+    @pytest.mark.asyncio
+    async def test_a_manual_pause_still_skips_the_gap(self, session, ws_id, test_user):
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 10, 5))
+        await svc.pause_schedule(session, s)
+        await svc.resume_schedule(session, s, today=date(2026, 10, 10))
+        assert s.next_sequence == 2
+
+    @pytest.mark.asyncio
+    async def test_a_payable_never_joins_an_agreement(self, session, ws_id, test_user):
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 3, 5))
+        bill = await an_invoice(session, ws_id, test_user.id, direction="payable", issue_date=date(2026, 6, 5))
+        with pytest.raises(InvoiceError) as exc:
+            await svc.link_invoice(session, s, bill, date(2026, 6, 5))
+        assert exc.value.code == "not_receivable"
+        with pytest.raises(InvoiceError) as exc:
+            await svc.make_recurring(session, bill, test_user.id, {"frequency": "monthly", "name": "Rent"}, today=TODAY)
+        assert exc.value.code == "not_receivable"
+
+    @pytest.mark.asyncio
+    async def test_a_period_issued_by_another_run_is_a_409_not_a_failure(self, session, ws_id, test_user):
+        """Two runs read the same cursor; the second trips the unique
+        (schedule, sequence). That is a no-op, never a counted failure."""
+        from sqlalchemy.exc import IntegrityError
+
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 10, 5))
+
+        async def racing_emit(*_args, **_kwargs):
+            raise IntegrityError("INSERT", {}, Exception("uq_invoices_schedule_sequence"))
+
+        with patch.object(svc, "_emit", side_effect=racing_emit):
+            with pytest.raises(InvoiceError) as exc:
+                await svc.generate_due(session, s, today=date(2026, 10, 5))
+        assert exc.value.code == "period_already_issued"
+        assert exc.value.status_code == 409
+        await session.refresh(s)
+        assert s.consecutive_failures == 0
+        assert s.status == "active"
+
+    @pytest.mark.asyncio
+    async def test_the_worker_treats_the_race_as_nothing_to_do(self, session, ws_id, test_user, monkeypatch):
+        from tests.conftest import TestSessionLocal
+        from app.tasks import invoice_schedule_tasks as task
+
+        s = await make_schedule(session, ws_id, test_user.id, start_date=date(2026, 1, 5), today=date(2026, 1, 1))
+        monkeypatch.setattr(svc, "_today", lambda: date(2026, 1, 5))
+        race = InvoiceError("period_already_issued", "raced", status_code=409)
+        with patch.object(svc, "generate_due", side_effect=race):
+            assert await task._generate_one(TestSessionLocal, s.id) == 0
+        await session.refresh(s)
+        assert s.consecutive_failures == 0 and s.status == "active"

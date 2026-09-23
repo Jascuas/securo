@@ -280,7 +280,10 @@ async def generate_now(
     try:
         emitted = await svc.generate_due(session, schedule, force_next=True)
     except InvoiceError as exc:
-        await session.commit()  # the failure count is worth keeping
+        # The failure count is worth keeping. A 409 already rolled back:
+        # the period exists, and there is nothing to record.
+        if exc.status_code != 409:
+            await session.commit()
         raise _http(exc)
     await session.commit()
     out = []

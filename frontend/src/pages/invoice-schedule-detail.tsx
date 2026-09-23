@@ -48,6 +48,7 @@ import {
   FREQUENCIES,
   endPayload,
   isUpcomingTerm,
+  localToday,
   monthlyEquivalent,
   periodLabel,
   scheduleActions,
@@ -635,7 +636,7 @@ function EndScheduleDialog({
   const { t } = useTranslation()
   const onError = useScheduleError()
   const [reason, setReason] = useState<InvoiceScheduleEndReason>('canceled_by_client')
-  const [endedAt, setEndedAt] = useState(() => new Date().toISOString().slice(0, 10))
+  const [endedAt, setEndedAt] = useState(() => localToday())
   const mutation = useMutation({
     mutationFn: () => schedulesApi.end(schedule.id, { reason, ended_at: endedAt }),
     onSuccess: () => {
@@ -707,7 +708,7 @@ function TermDialog({
   })
   const source = term ?? schedule.next_term ?? schedule.current_term
   const [effectiveFrom, setEffectiveFrom] = useState(
-    term?.effective_from ?? schedule.next_period_start ?? new Date().toISOString().slice(0, 10),
+    term?.effective_from ?? schedule.next_period_start ?? localToday(),
   )
   const [lines, setLines] = useState<InvoiceLineInput[]>(
     source ? source.lines.map((line) => ({ ...line })) : [{ description: '', quantity: '1', unit_price: '0' }],

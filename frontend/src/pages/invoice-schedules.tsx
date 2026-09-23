@@ -37,7 +37,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { invoiceSchedules as schedulesApi, invoices as invoicesApi, payees as payeesApi } from '@/lib/api'
 import { invoiceErrorKey, linesTotal } from '@/lib/invoice-utils'
-import { FREQUENCIES, endPayload, monthlyEquivalent } from '@/lib/invoice-schedule-utils'
+import { FREQUENCIES, endPayload, localToday, monthlyEquivalent } from '@/lib/invoice-schedule-utils'
 import type {
   InvoiceLineInput,
   InvoiceSchedule,
@@ -334,7 +334,7 @@ function CreateScheduleDialog({
   const [name, setName] = useState('')
   const [payeeId, setPayeeId] = useState('')
   const [frequency, setFrequency] = useState<InvoiceScheduleFrequency>('monthly')
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [startDate, setStartDate] = useState(() => localToday())
   const [endType, setEndType] = useState<InvoiceScheduleEndType>('never')
   const [endDate, setEndDate] = useState('')
   const [endCount, setEndCount] = useState('')

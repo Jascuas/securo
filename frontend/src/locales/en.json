@@ -322,7 +322,10 @@
       "invoice_not_found": "Invoice not found.",
       "no_term": "No term is in force for this period.",
       "no_author": "This agreement has no author to issue invoices as.",
-      "negative_discount": "A discount cannot be negative."
+      "negative_discount": "A discount cannot be negative.",
+      "first_term": "The price in force from the start cannot be moved or removed. Change it, or add a new price from a later date.",
+      "not_receivable": "Only an invoice you issued can belong to an agreement.",
+      "period_already_issued": "This period was just issued. Refresh to see it."
     },
     "comingNext": "Bill your clients and keep track of what has been paid and what is still open. This is the next thing being built.",
     "document": {

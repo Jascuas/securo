@@ -120,3 +120,12 @@ export function endPayload(endType: InvoiceScheduleEndType, endDate: string, end
     end_count: endType === 'after_count' && endCount ? Number(endCount) : null,
   }
 }
+
+/** Today as `YYYY-MM-DD` in the viewer's own calendar. Not
+ *  `toISOString()`, which is the UTC date: in the evening west of UTC
+ *  it is already tomorrow, and a billing date defaulted from it is off
+ *  by one without anybody noticing. */
+export function localToday(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}

@@ -322,7 +322,10 @@
       "invoice_not_found": "Fattura non trovata.",
       "no_term": "Nessuna condizione è in vigore per questo periodo.",
       "no_author": "Questo accordo non ha un autore a nome del quale emettere fatture.",
-      "negative_discount": "Uno sconto non può essere negativo."
+      "negative_discount": "Uno sconto non può essere negativo.",
+      "first_term": "Il prezzo in vigore dall'inizio non può essere spostato né rimosso. Modificalo o aggiungi un nuovo prezzo da una data successiva.",
+      "not_receivable": "Solo una fattura emessa da te può appartenere a un accordo.",
+      "period_already_issued": "Questo periodo è appena stato emesso. Aggiorna per vederlo."
     },
     "comingNext": "Fattura i tuoi clienti e tieni traccia di cosa è stato pagato e cosa è ancora aperto. È la prossima cosa in costruzione.",
     "document": {

@@ -322,7 +322,10 @@
       "invoice_not_found": "Nie znaleziono faktury.",
       "no_term": "Dla tego okresu nie obowiązuje żaden warunek.",
       "no_author": "Ta umowa nie ma autora, w imieniu którego można wystawiać faktury.",
-      "negative_discount": "Rabat nie może być ujemny."
+      "negative_discount": "Rabat nie może być ujemny.",
+      "first_term": "Ceny obowiązującej od początku nie można przesunąć ani usunąć. Zmień ją lub dodaj nową cenę od późniejszej daty.",
+      "not_receivable": "Do umowy może należeć tylko faktura wystawiona przez Ciebie.",
+      "period_already_issued": "Ten okres został właśnie wystawiony. Odśwież, aby go zobaczyć."
     },
     "comingNext": "Wystawiaj faktury klientom i śledź, co zostało zapłacone, a co wciąż jest otwarte. To następna rzecz w budowie.",
     "document": {

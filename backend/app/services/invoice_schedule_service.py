@@ -46,6 +46,7 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.invoice import Invoice, InvoiceAllocation, InvoiceSettings
@@ -307,6 +308,11 @@ async def update_term(
         raise InvoiceError("term_not_found", "Term not found on this agreement", 404)
     await _assert_term_editable(session, schedule, term.effective_from)
     if effective_from is not None and effective_from != term.effective_from:
+        # The term in force from the start is what prices the first
+        # periods. Moving it later would leave them with no price, and
+        # the job would fail on each until it paused the agreement.
+        if term.effective_from == schedule.start_date:
+            raise InvoiceError("first_term", "The price in force from the start cannot be moved")
         if effective_from < schedule.start_date:
             raise InvoiceError(
                 "term_before_start", "A term cannot start before the agreement does"
@@ -331,6 +337,8 @@ async def delete_term(
         raise InvoiceError("term_not_found", "Term not found on this agreement", 404)
     if len(schedule.terms) <= 1:
         raise InvoiceError("last_term", "An agreement needs at least one term")
+    if term.effective_from == schedule.start_date:
+        raise InvoiceError("first_term", "The price in force from the start cannot be removed")
     await _assert_term_editable(session, schedule, term.effective_from)
     schedule.terms.remove(term)
     await session.delete(term)
@@ -659,7 +667,7 @@ async def update_schedule(
             # The first term moves with the anchor: it is the price
             # "from the start", and the start moved.
             first = min(schedule.terms, key=lambda t: t.effective_from)
-            if any(t.effective_from < data["start_date"] for t in schedule.terms if t is not first):
+            if any(t.effective_from <= data["start_date"] for t in schedule.terms if t is not first):
                 raise InvoiceError(
                     "term_before_start", "A term would start before the agreement does"
                 )
@@ -731,18 +739,26 @@ async def resume_schedule(
 ) -> InvoiceSchedule:
     """Back to emitting, from the next period on.
 
-    Periods that fell while paused are not emitted: a pause is "stop
-    billing", and billing the gap afterwards would be the opposite. The
-    cursor skips to the first period on or after today, and anything
-    before it is history the user may link by hand.
+    Periods that fell during a manual pause are not emitted: a pause is
+    "stop billing", and billing the gap afterwards would be the
+    opposite. The cursor skips to the first period on or after today,
+    and anything before it is history the user may link by hand.
+
+    A pause for failures is different: the job gave up on a period that
+    was already due, and resuming is the person saying the cause is
+    fixed. The cursor stays on that period so it is billed, not dropped.
     """
     today = today or _today()
     if schedule.status == "ended":
         raise InvoiceError("schedule_ended", "An ended agreement cannot be resumed")
+    paused_by_failures = schedule.pause_reason == "failures"
     schedule.status = "active"
     schedule.pause_reason = None
     schedule.consecutive_failures = 0
-    schedule.next_sequence = max(schedule.next_sequence, first_sequence_on_or_after(schedule, today))
+    if not paused_by_failures:
+        schedule.next_sequence = max(
+            schedule.next_sequence, first_sequence_on_or_after(schedule, today)
+        )
     _complete_if_over(schedule, today)
     await session.flush()
     return schedule
@@ -806,6 +822,11 @@ async def link_invoice(
     """
     if invoice.workspace_id != schedule.workspace_id:
         raise InvoiceError("invoice_not_found", "Invoice not found", 404)
+    # An agreement bills a client. A bill received is the supplier's
+    # agreement, and summing it here would count money going out as
+    # money coming in.
+    if invoice.direction != "receivable":
+        raise InvoiceError("not_receivable", "Only an invoice you issued can belong to an agreement")
     if invoice.schedule_id is not None:
         raise InvoiceError("already_linked", "This invoice already belongs to an agreement", 409)
     if invoice.status == "void":
@@ -886,6 +907,8 @@ async def make_recurring(
         raise InvoiceError(
             "not_issued", "Only an issued invoice can start an agreement"
         )
+    if invoice.direction != "receivable":
+        raise InvoiceError("not_receivable", "Only an invoice you issued can start an agreement")
     if invoice.schedule_id is not None:
         raise InvoiceError("already_linked", "This invoice already belongs to an agreement", 409)
 
@@ -1010,6 +1033,22 @@ async def generate_due(
     today = today or _today()
     if schedule.status != "active" or schedule.origin != "local":
         return []
+    # Two runs on one agreement (a double click on "issue next now", or
+    # the button racing the hourly job) would both read the same cursor.
+    # Locking the row makes the second wait, then read the cursor the
+    # first one moved, so it finds nothing left to emit. Columns rather
+    # than the entity: the entity joins the payee, and Postgres refuses
+    # FOR UPDATE on the nullable side of an outer join.
+    locked = (
+        await session.execute(
+            select(InvoiceSchedule.status, InvoiceSchedule.next_sequence)
+            .where(InvoiceSchedule.id == schedule.id)
+            .with_for_update()
+        )
+    ).one()
+    if locked.status != "active":
+        return []
+    schedule.next_sequence = max(schedule.next_sequence, locked.next_sequence)
     emitted: list[Invoice] = []
     try:
         while len(emitted) < MAX_PERIODS_PER_RUN:
@@ -1031,6 +1070,16 @@ async def generate_due(
                 break
         schedule.consecutive_failures = 0
         _complete_if_over(schedule, today)
+    except IntegrityError:
+        # The unique (schedule, sequence) caught a period another run
+        # emitted first. The period exists, so this is not a failure and
+        # must not count towards pausing the agreement.
+        await session.rollback()
+        raise InvoiceError(
+            "period_already_issued",
+            "This period was issued by another run a moment ago",
+            status_code=409,
+        ) from None
     except Exception:
         schedule.consecutive_failures += 1
         if schedule.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:

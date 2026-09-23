@@ -322,7 +322,10 @@
       "invoice_not_found": "Cobrança não encontrada.",
       "no_term": "Nenhum termo está em vigor para este período.",
       "no_author": "Este acordo não tem um autor para emitir cobranças.",
-      "negative_discount": "Um desconto não pode ser negativo."
+      "negative_discount": "Um desconto não pode ser negativo.",
+      "first_term": "O preço vigente desde o início não pode ser movido nem removido. Altere-o ou adicione um novo preço a partir de uma data posterior.",
+      "not_receivable": "Só uma cobrança emitida por você pode pertencer a um acordo.",
+      "period_already_issued": "Este período acabou de ser emitido. Atualize a página para vê-lo."
     },
     "comingNext": "Cobre seus clientes e acompanhe o que já foi pago e o que continua em aberto. É a próxima coisa sendo construída.",
     "document": {

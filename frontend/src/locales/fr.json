@@ -322,7 +322,10 @@
       "invoice_not_found": "Facture introuvable.",
       "no_term": "Aucune condition n'est en vigueur pour cette période.",
       "no_author": "Cet accord n'a pas d'auteur au nom duquel émettre les factures.",
-      "negative_discount": "Une remise ne peut pas être négative."
+      "negative_discount": "Une remise ne peut pas être négative.",
+      "first_term": "Le prix en vigueur depuis le début ne peut être ni déplacé ni supprimé. Modifiez-le, ou ajoutez un nouveau prix à partir d'une date ultérieure.",
+      "not_receivable": "Seule une facture que vous avez émise peut appartenir à un accord.",
+      "period_already_issued": "Cette période vient d'être émise. Actualisez pour la voir."
     },
     "comingNext": "Facturez vos clients et suivez ce qui a été payé et ce qui reste ouvert. C'est la prochaine chose en construction.",
     "document": {

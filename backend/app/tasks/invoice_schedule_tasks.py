@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.core.config import get_settings
 from app.models.workspace import Workspace
 from app.services import invoice_schedule_service, invoice_service
+from app.services.invoice_service import InvoiceError
 from app.worker import celery_app
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,11 @@ async def _generate_one(session_maker, schedule_id) -> int:
             return 0
         try:
             emitted = await invoice_schedule_service.generate_due(session, schedule)
-        except Exception:
+        except Exception as exc:
+            if isinstance(exc, InvoiceError) and exc.code == "period_already_issued":
+                # Another run emitted the period first. Nothing failed,
+                # and `generate_due` already rolled back.
+                return 0
             # `generate_due` already counted the failure on the row and
             # may have paused the schedule; what it did not do is commit.
             # Anything half-written for the invoice is rolled back, then

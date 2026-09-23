@@ -5,6 +5,7 @@ import {
   PERIODS_PER_YEAR,
   endPayload,
   isUpcomingTerm,
+  localToday,
   monthlyEquivalent,
   periodLabel,
   scheduleActions,
@@ -97,5 +98,14 @@ describe('endPayload', () => {
     expect(endPayload('never', '2027-01-01', '5')).toEqual({ end_type: 'never', end_date: null, end_count: null })
     expect(endPayload('on_date', '2027-01-01', '5')).toEqual({ end_type: 'on_date', end_date: '2027-01-01', end_count: null })
     expect(endPayload('after_count', '2027-01-01', '5')).toEqual({ end_type: 'after_count', end_date: null, end_count: 5 })
+  })
+})
+
+describe('localToday', () => {
+  it('is the local calendar date, not the UTC one', () => {
+    // 23:30 on Sep 22 in local time. In UTC west of Greenwich this is
+    // already Sep 23, which is what `toISOString()` would have said.
+    expect(localToday(new Date(2026, 8, 22, 23, 30))).toBe('2026-09-22')
+    expect(localToday(new Date(2026, 0, 5, 0, 5))).toBe('2026-01-05')
   })
 })

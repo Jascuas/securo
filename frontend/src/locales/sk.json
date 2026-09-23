@@ -322,7 +322,10 @@
       "invoice_not_found": "Faktúra sa nenašla.",
       "no_term": "Pre toto obdobie neplatí žiadna podmienka.",
       "no_author": "Táto dohoda nemá autora, v mene ktorého by sa vystavovali faktúry.",
-      "negative_discount": "Zľava nemôže byť záporná."
+      "negative_discount": "Zľava nemôže byť záporná.",
+      "first_term": "Cenu platnú od začiatku nemožno presunúť ani odstrániť. Zmeňte ju alebo pridajte novú cenu od neskoršieho dátumu.",
+      "not_receivable": "K dohode môže patriť iba faktúra, ktorú ste vystavili vy.",
+      "period_already_issued": "Toto obdobie bolo práve vystavené. Obnovte stránku, aby ste ho videli."
     },
     "comingNext": "Fakturujte klientom a majte prehľad o tom, čo je zaplatené a čo ešte otvorené. Toto sa práve stavia.",
     "document": {
