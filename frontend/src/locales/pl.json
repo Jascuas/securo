@@ -2037,6 +2037,9 @@
     "anyCountry": "Gdziekolwiek indziej"
   },
   "common": {
+    "selectTimezone": "Wybierz strefę czasową",
+    "searchTimezone": "Szukaj strefy czasowej...",
+    "noTimezoneFound": "Nie znaleziono strefy czasowej.",
     "createNamed": "Utwórz „{{name}}”",
     "view": "Zobacz",
     "add": "Dodaj",

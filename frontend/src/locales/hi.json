@@ -1946,6 +1946,9 @@
     "anyCountry": "और कहीं भी"
   },
   "common": {
+    "selectTimezone": "समय क्षेत्र चुनें",
+    "searchTimezone": "समय क्षेत्र खोजें...",
+    "noTimezoneFound": "कोई समय क्षेत्र नहीं मिला।",
     "createNamed": "\"{{name}}\" बनाएं",
     "view": "देखें",
     "add": "जोड़ें",

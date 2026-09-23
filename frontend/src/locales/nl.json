@@ -1948,6 +1948,9 @@
     "anyCountry": "Ergens anders"
   },
   "common": {
+    "selectTimezone": "Tijdzone kiezen",
+    "searchTimezone": "Tijdzone zoeken...",
+    "noTimezoneFound": "Geen tijdzone gevonden.",
     "createNamed": "\"{{name}}\" aanmaken",
     "view": "Bekijk",
     "add": "Toevoegen",

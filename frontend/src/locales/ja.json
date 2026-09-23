@@ -1946,6 +1946,9 @@
     "anyCountry": "その他すべての国"
   },
   "common": {
+    "selectTimezone": "タイムゾーンを選択",
+    "searchTimezone": "タイムゾーンを検索...",
+    "noTimezoneFound": "タイムゾーンが見つかりません。",
     "createNamed": "「{{name}}」を作成",
     "view": "表示",
     "add": "追加",

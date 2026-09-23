@@ -1959,6 +1959,9 @@
     "anyCountry": "Будь-де інде"
   },
   "common": {
+    "selectTimezone": "Виберіть часовий пояс",
+    "searchTimezone": "Пошук часового поясу...",
+    "noTimezoneFound": "Часовий пояс не знайдено.",
     "createNamed": "Створити «{{name}}»",
     "view": "Переглянути",
     "add": "Додати",

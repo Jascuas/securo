@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { auth as authApi, currencies as currenciesApi, fiscal as fiscalApi, workspaces as workspacesApi } from '@/lib/api'
 import { useTimezones } from '@/hooks/use-timezone'
+import { TimezoneSelect } from '@/components/timezone-select'
 import { useAuth } from '@/contexts/auth-context'
 import { useWorkspace } from '@/contexts/workspace-context'
 import { useLocalAuthEnabled } from '@/hooks/use-local-auth'
@@ -487,23 +488,15 @@ export default function WorkspaceSettingsPage() {
               <Label htmlFor="ws-timezone" className="text-[13px]">
                 {t('workspace.timezone')}
               </Label>
-              <Select
-                value={editTimezone || '__default__'}
-                onValueChange={(v) => setEditTimezone(v === '__default__' ? '' : v)}
+              <TimezoneSelect
+                id="ws-timezone"
+                className="h-10 rounded-lg w-full"
+                value={editTimezone}
+                onChange={setEditTimezone}
+                options={timezoneOptions?.available ?? (editTimezone ? [editTimezone] : [])}
+                emptyOption={t('workspace.timezoneDefault', { zone: timezoneOptions?.default ?? 'UTC' })}
                 disabled={!canManage}
-              >
-                <SelectTrigger id="ws-timezone" className="h-10 rounded-lg w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__default__">
-                    {t('workspace.timezoneDefault', { zone: timezoneOptions?.default ?? 'UTC' })}
-                  </SelectItem>
-                  {(timezoneOptions?.available ?? (editTimezone ? [editTimezone] : [])).map((name) => (
-                    <SelectItem key={name} value={name}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 {t('workspace.timezoneHint')}
               </p>

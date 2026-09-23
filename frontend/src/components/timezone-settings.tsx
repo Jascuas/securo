@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { TimezoneSelect } from '@/components/timezone-select'
 import { admin, type TimezoneSetting } from '@/lib/api'
 
 const calendarQueryKeys = new Set([
@@ -120,24 +121,16 @@ export function TimezoneSettings() {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-3">
-              <select
+              <TimezoneSelect
                 id="application-timezone"
                 aria-describedby="application-timezone-help"
-                className="h-10 max-w-full rounded-lg border border-input bg-card px-3 text-sm"
+                className="h-10 w-80 max-w-full"
                 disabled={saveTimezone.isPending}
                 value={selectedChoice}
-                onChange={(event) => setDraft(event.target.value)}
-              >
-                <option value={SERVER_DEFAULT}>
-                  {t('admin.settings.timezoneServerDefault', { zone: setting.fallback })}
-                </option>
-                {savedIsBroken && setting.saved && (
-                  <option value={setting.saved} disabled>{setting.saved}</option>
-                )}
-                {setting.available.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
+                onChange={setDraft}
+                options={setting.available}
+                emptyOption={t('admin.settings.timezoneServerDefault', { zone: setting.fallback })}
+              />
               <Button
                 disabled={saveTimezone.isPending || draft === undefined || draft === currentChoice}
                 onClick={() => draft !== undefined && saveTimezone.mutate(draft)}

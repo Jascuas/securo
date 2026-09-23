@@ -1946,6 +1946,9 @@
     "anyCountry": "Anywhere else"
   },
   "common": {
+    "selectTimezone": "Select timezone",
+    "searchTimezone": "Search timezone...",
+    "noTimezoneFound": "No timezone found.",
     "createNamed": "Create \"{{name}}\"",
     "view": "View",
     "add": "Add",

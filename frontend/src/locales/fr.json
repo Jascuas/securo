@@ -1947,6 +1947,9 @@
     "anyCountry": "Ailleurs"
   },
   "common": {
+    "selectTimezone": "Choisir un fuseau horaire",
+    "searchTimezone": "Rechercher un fuseau horaire...",
+    "noTimezoneFound": "Aucun fuseau horaire trouvé.",
     "createNamed": "Créer « {{name}} »",
     "view": "Voir",
     "add": "Ajouter",

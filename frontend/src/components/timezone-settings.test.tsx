@@ -33,8 +33,7 @@ it('lets administrators retry a failed timezone load', async () => {
   await screen.findByRole('alert')
   await user.click(screen.getByRole('button', { name: 'Retry' }))
   // Nothing saved reads as the server default, named after where it lands.
-  expect(await screen.findByLabelText('Application timezone')).toHaveValue('')
-  expect(screen.getByRole('option', { name: 'Server default (Etc/UTC)' })).toBeInTheDocument()
+  expect(await screen.findByLabelText('Application timezone')).toHaveTextContent('Server default (Etc/UTC)')
 })
 
 it('refreshes date-sensitive data without invalidating unrelated settings', async () => {
@@ -76,11 +75,13 @@ it('refreshes date-sensitive data without invalidating unrelated settings', asyn
   const { user } = renderWithProviders(<TimezoneSettings />, { queryClient })
   const select = await screen.findByLabelText('Application timezone')
   expect(select).toHaveAccessibleDescription(/Calendar dates/)
-  await user.selectOptions(select, 'America/Sao_Paulo')
+  await user.click(select)
+  await user.type(screen.getByPlaceholderText('Search timezone...'), 'sao paulo')
+  await user.click(screen.getByRole('option', { name: /America\/Sao_Paulo/ }))
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
   await waitFor(() => expect(admin.updateSetting).toHaveBeenCalledWith('timezone', 'America/Sao_Paulo'))
-  await waitFor(() => expect(select).toHaveValue('America/Sao_Paulo'))
+  await waitFor(() => expect(select).toHaveTextContent('America/Sao_Paulo'))
   await waitFor(() => {
     for (const key of affected) expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
   })
@@ -96,14 +97,15 @@ it('forgets the saved timezone when the server default is chosen', async () => {
 
   const { user } = renderWithProviders(<TimezoneSettings />)
   const select = await screen.findByLabelText('Application timezone')
-  expect(select).toHaveValue('America/Sao_Paulo')
+  expect(select).toHaveTextContent('America/Sao_Paulo')
 
-  await user.selectOptions(select, '')
+  await user.click(select)
+  await user.click(screen.getByRole('option', { name: /Server default/ }))
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
   await waitFor(() => expect(admin.deleteSetting).toHaveBeenCalledWith('timezone'))
   expect(admin.updateSetting).not.toHaveBeenCalled()
-  await waitFor(() => expect(select).toHaveValue(''))
+  await waitFor(() => expect(select).toHaveTextContent('Server default (Etc/UTC)'))
 })
 
 it('warns when the saved value is not a timezone the server knows', async () => {
@@ -121,8 +123,9 @@ it('warns when the saved value is not a timezone the server knows', async () => 
   // The picker shows the broken value as it is, so choosing the server
   // default is a real change that clears it.
   const select = screen.getByLabelText('Application timezone')
-  expect(select).toHaveValue('Mars/Olympus_Mons')
-  await user.selectOptions(select, '')
+  expect(select).toHaveTextContent('Mars/Olympus_Mons')
+  await user.click(select)
+  await user.click(screen.getByRole('option', { name: /Server default/ }))
   await user.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(admin.deleteSetting).toHaveBeenCalledWith('timezone'))
 })
