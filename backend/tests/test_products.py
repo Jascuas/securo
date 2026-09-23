@@ -341,6 +341,30 @@ class TestSchedules:
         assert inv.lines[0].product_id is None and inv.total == Decimal("200.00")
 
     @pytest.mark.asyncio
+    async def test_a_term_refuses_bad_fiscal_refs_when_written_not_when_emitted(self, session, ws_id, test_user):
+        """A bad key on a term would fail every period until the job paused
+        the agreement. It is refused at the door, and a good one is stored
+        clean."""
+        with pytest.raises(InvoiceError) as exc:
+            await schedules.create_schedule(
+                session, ws_id, test_user.id,
+                {"name": "R", "frequency": "monthly", "start_date": date(2026, 10, 5), "currency": "USD",
+                 "lines": [{"description": "Hour", "unit_price": "200", "fiscal_refs": {"bad key": "1"}}]},
+                today=TODAY,
+            )
+        assert exc.value.code == "invalid_fiscal_refs"
+        s = await schedules.create_schedule(
+            session, ws_id, test_user.id,
+            {"name": "R", "frequency": "monthly", "start_date": date(2026, 10, 5), "currency": "USD",
+             "lines": [{"description": "Hour", "unit_price": "200", "fiscal_refs": {"Service_Code": " 1.05 ", "empty": ""}}]},
+            today=TODAY,
+        )
+        await session.commit()
+        assert s.terms[0].lines[0]["fiscal_refs"] == {"service_code": "1.05"}
+        [inv] = await schedules.generate_due(session, s, today=date(2026, 10, 5))
+        assert inv.lines[0].fiscal_refs == {"service_code": "1.05"}
+
+    @pytest.mark.asyncio
     async def test_make_recurring_keeps_the_provenance(self, session, ws_id, test_user):
         p = await make_product(session, ws_id, test_user.id)
         inv = await an_invoice(session, ws_id, test_user.id, [{"description": "Hour", "unit_price": "200", "product_id": p.id}])

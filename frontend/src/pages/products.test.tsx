@@ -170,13 +170,22 @@ describe('ProductsPage editing', () => {
   })
 
   it('closes on the server state when a request in the sequence fails', async () => {
+    // The product update commits, the price update fails: the list must
+    // then show what the server holds (the new name), and the dialog
+    // must be gone so a retry does not replay the committed part.
+    const updated = product({ name: 'Updated consulting hour' })
+    api.products.list.mockReset()
+    api.products.list.mockResolvedValueOnce([product()]).mockResolvedValue([updated])
+    api.products.update.mockResolvedValue(updated)
     api.products.updatePrice.mockRejectedValueOnce({ response: { data: { detail: { code: 'negative_price' } } } })
     const { user } = renderWithProviders(<ProductsPage />, { route: '/invoices/products' })
     const [row] = await screen.findAllByTestId('product-row')
     await user.click(within(row).getByLabelText(t('common.edit')))
-    await screen.findByTestId('product-name-input')
+    const nameInput = await screen.findByTestId('product-name-input')
+    await user.clear(nameInput)
+    await user.type(nameInput, updated.name)
     await user.click(screen.getByTestId('product-save'))
-    await screen.findAllByTestId('product-row')
+    await screen.findByText(updated.name)
     expect(screen.queryByTestId('product-name-input')).not.toBeInTheDocument()
   })
 })

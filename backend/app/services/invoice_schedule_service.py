@@ -201,7 +201,16 @@ def _term_totals(lines: list[dict[str, Any]], discount: Decimal) -> tuple[Decima
 
 
 def _normalise_lines(lines: Any) -> list[dict[str, Any]]:
-    """Lines as they will be stored: plain JSON, decimals as strings."""
+    """Lines as they will be stored: plain JSON, decimals as strings.
+
+    Fiscal references are cleaned here, when a person can fix them, and
+    not only at emission: a bad key stored on a term would fail every
+    period until the job paused the agreement.
+    """
+    # Lazy: the catalog reads this module's neighbours, and a top-level
+    # import each way would be a cycle.
+    from app.services.product_service import clean_fiscal_refs
+
     if not lines:
         raise InvoiceError("term_lines_required", "A term needs at least one line")
     out: list[dict[str, Any]] = []
@@ -223,7 +232,7 @@ def _normalise_lines(lines: Any) -> list[dict[str, Any]]:
                 # deleted later must not stop the agreement from billing.
                 "product_id": str(line["product_id"]) if line.get("product_id") else None,
                 "price_id": str(line["price_id"]) if line.get("price_id") else None,
-                "fiscal_refs": dict(line["fiscal_refs"]) if line.get("fiscal_refs") else None,
+                "fiscal_refs": clean_fiscal_refs(line.get("fiscal_refs")),
             }
         )
     return out

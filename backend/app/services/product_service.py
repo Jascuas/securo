@@ -41,7 +41,7 @@ ZERO = Decimal("0.00")
 _REF_KEY = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 
 
-def _clean_fiscal_refs(value: Any) -> Optional[dict[str, str]]:
+def clean_fiscal_refs(value: Any) -> Optional[dict[str, str]]:
     """Fiscal references as stored: lowercase keys, trimmed text values,
     empty values dropped. Any key is accepted (the pack suggests, it
     never restricts); a key that is not a key is refused."""
@@ -183,7 +183,7 @@ async def create_product(
         external_source=data.get("external_source"),
         external_id=data.get("external_id"),
         custom_fields=data.get("custom_fields"),
-        fiscal_refs=_clean_fiscal_refs(data.get("fiscal_refs")),
+        fiscal_refs=clean_fiscal_refs(data.get("fiscal_refs")),
     )
     product.prices = []
     session.add(product)
@@ -213,7 +213,7 @@ async def update_product(session: AsyncSession, product: Product, data: dict[str
         if field in data:
             setattr(product, field, data[field] or None)
     if "fiscal_refs" in data:
-        product.fiscal_refs = _clean_fiscal_refs(data["fiscal_refs"])
+        product.fiscal_refs = clean_fiscal_refs(data["fiscal_refs"])
     if "active" in data and data["active"] is not None:
         product.active = bool(data["active"])
     await session.flush()
@@ -428,7 +428,7 @@ async def resolve_lines(
         # now so the document later reads what the line says. A line
         # that brought its own keeps them.
         if line.get("fiscal_refs"):
-            line["fiscal_refs"] = _clean_fiscal_refs(line["fiscal_refs"])
+            line["fiscal_refs"] = clean_fiscal_refs(line["fiscal_refs"])
         elif product_id and product_id in products:
             line["fiscal_refs"] = dict(products[product_id].fiscal_refs or {}) or None
         else:
