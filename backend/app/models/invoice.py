@@ -353,6 +353,16 @@ class InvoiceLine(Base):
     tax_rate: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=7, scale=4), nullable=True)
     total: Mapped[Decimal] = mapped_column(Numeric(precision=15, scale=2), default=Decimal("0"))
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Where the line came from, when it came from the catalog. Provenance
+    # only: the fields above are the line's own copy, and neither id
+    # takes part in the arithmetic. SET NULL because the line is part of
+    # a document and outlives the catalog entry.
+    product_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    price_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("product_prices.id", ondelete="SET NULL"), nullable=True
+    )
 
     invoice: Mapped["Invoice"] = relationship(back_populates="lines")
 

@@ -35,10 +35,16 @@ class InvoiceLineInput(BaseModel):
     # A percentage, not an amount — and only meaningful when the
     # workspace shows tax fields at all.
     tax_rate: Optional[Decimal] = Field(default=None, ge=0, le=100)
+    #: Where the line came from, when it came from the catalog. The
+    #: values above are still the line's own; these only remember.
+    product_id: Optional[uuid.UUID] = None
+    price_id: Optional[uuid.UUID] = None
 
 
 class InvoiceLineRead(BaseModel):
     id: uuid.UUID
+    product_id: Optional[uuid.UUID] = None
+    price_id: Optional[uuid.UUID] = None
     description: str
     quantity: Decimal
     unit: Optional[str] = None

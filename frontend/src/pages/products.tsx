@@ -1,0 +1,491 @@
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Archive, ArchiveRestore, ArrowLeft, Package, Pencil, Plus, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
+
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { PageHeader } from '@/components/page-header'
+import { IconAction, SectionCard, Segmented, TH } from '@/components/invoice-ui'
+import { CurrencySelect } from '@/components/currency-select'
+import { cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/format'
+import { useDisplayLocale } from '@/hooks/use-display-locale'
+import { usePrivacyMode } from '@/hooks/use-privacy-mode'
+import { useAuth } from '@/contexts/auth-context'
+import { useWorkspace } from '@/contexts/workspace-context'
+import { invoices as invoicesApi, products as productsApi, type PricePayload } from '@/lib/api'
+import { invoiceErrorKey } from '@/lib/invoice-utils'
+import { FREQUENCIES } from '@/lib/invoice-schedule-utils'
+import { productActions } from '@/lib/product-utils'
+import type { InvoiceScheduleFrequency, PriceBilling, Product, ProductKind } from '@/types'
+
+/**
+ * The catalog: what this workspace sells, and for how much.
+ *
+ * Optional by design. A workspace that never opens this page writes
+ * invoice lines exactly as before; one that does gets a picker beside
+ * every line. Archiving is the way out for a product an invoice names,
+ * because the invoice keeps pointing at it.
+ */
+type Filter = 'active' | 'archived'
+
+export default function ProductsPage() {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const locale = useDisplayLocale()
+  const { mask } = usePrivacyMode()
+  const { canWrite } = useWorkspace()
+  const queryClient = useQueryClient()
+
+  const [filter, setFilter] = useState<Filter>('active')
+  const [search, setSearch] = useState('')
+  const [editing, setEditing] = useState<Product | 'new' | null>(null)
+
+  const { data: list, isLoading } = useQuery({
+    queryKey: ['products', filter],
+    queryFn: () => productsApi.list({ active: filter === 'active' }),
+  })
+
+  const visible = useMemo(() => {
+    if (!list) return []
+    const q = search.trim().toLowerCase()
+    if (!q) return list
+    return list.filter(
+      (p) => p.name.toLowerCase().includes(q) || (p.description ?? '').toLowerCase().includes(q),
+    )
+  }, [list, search])
+
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['products'] })
+  }
+  const onError = (error: unknown) => {
+    const key = invoiceErrorKey(error)
+    toast.error(key ? t(key, t('invoices.errors.generic')) : t('invoices.errors.generic'))
+  }
+  const archiveMutation = useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) => productsApi.update(id, { active }),
+    onSuccess: (_, { active }) => {
+      toast.success(active ? t('invoices.products.restored') : t('invoices.products.archived'))
+      refresh()
+    },
+    onError,
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => productsApi.remove(id),
+    onSuccess: () => {
+      toast.success(t('invoices.products.deleted'))
+      refresh()
+    },
+    onError,
+  })
+
+  const money = (value: string, code: string) => mask(formatCurrency(Number(value), code, locale))
+  const priceLabel = (product: Product) => {
+    const live = product.prices.filter((p) => p.active)
+    if (live.length === 0) return t('invoices.products.noPrice')
+    return live
+      .map(
+        (p) =>
+          money(p.unit_price, p.currency) +
+          (p.interval ? ` / ${t(`invoices.products.per.${p.interval}`)}` : ''),
+      )
+      .join(' · ')
+  }
+
+  return (
+    <div>
+      <button
+        onClick={() => navigate('/invoices')}
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-3"
+        data-testid="products-back"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {t('invoices.backToList')}
+      </button>
+
+      <PageHeader
+        section={t('invoices.title')}
+        title={t('invoices.products.title')}
+        action={
+          canWrite ? (
+            <Button size="sm" onClick={() => setEditing('new')} data-testid="product-new-button">
+              <Plus className="h-4 w-4 mr-1.5" />
+              {t('invoices.products.new')}
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <Segmented<Filter>
+          value={filter}
+          onChange={setFilter}
+          testIdPrefix="product-filter"
+          options={(['active', 'archived'] as const).map((value) => ({
+            value,
+            label: t(`invoices.products.filter.${value}`),
+          }))}
+        />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('invoices.products.searchPlaceholder')}
+          className="h-9 w-full sm:w-64"
+          data-testid="product-search"
+        />
+      </div>
+
+      <SectionCard>
+        {isLoading ? (
+          <div className="p-5 space-y-3">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="px-5 py-14 text-center" data-testid="products-empty">
+            <Package className="h-8 w-8 mx-auto text-muted-foreground/50" />
+            <p className="mt-3 text-sm text-muted-foreground max-w-sm mx-auto">
+              {search
+                ? t('invoices.products.noneFound')
+                : filter === 'archived'
+                  ? t('invoices.products.emptyArchived')
+                  : t('invoices.products.empty')}
+            </p>
+            {!search && filter === 'active' && canWrite && (
+              <Button size="sm" className="mt-4" onClick={() => setEditing('new')}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                {t('invoices.products.new')}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className={`${TH} pl-4 sm:pl-5 text-left`}>{t('invoices.products.column.name')}</th>
+                  <th className={`${TH} text-left w-24 hidden sm:table-cell`}>{t('invoices.products.column.kind')}</th>
+                  <th className={`${TH} text-left hidden md:table-cell`}>{t('invoices.products.column.prices')}</th>
+                  <th className={`${TH} text-right w-24 hidden lg:table-cell`}>{t('invoices.products.column.invoices')}</th>
+                  {canWrite && (
+                    <th className={`${TH} pr-4 sm:pr-5 w-28`}>
+                      <span className="sr-only">{t('invoices.moreActions')}</span>
+                    </th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((product) => {
+                  const actions = productActions(product)
+                  return (
+                    <tr key={product.id} data-testid="product-row" className="border-b border-border last:border-0">
+                      <td className="py-3 pl-4 sm:pl-5">
+                        <div className="text-sm font-medium text-foreground truncate">{product.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {product.description ?? (product.unit ? t('invoices.products.perUnit', { unit: product.unit }) : '')}
+                        </div>
+                      </td>
+                      <td className="py-3 hidden sm:table-cell text-xs text-muted-foreground">
+                        {t(`invoices.products.kind.${product.kind}`)}
+                      </td>
+                      <td className="py-3 hidden md:table-cell text-xs text-muted-foreground tabular-nums">
+                        {priceLabel(product)}
+                      </td>
+                      <td className="py-3 text-right hidden lg:table-cell text-xs text-muted-foreground tabular-nums">
+                        {product.invoice_count}
+                      </td>
+                      {canWrite && (
+                        <td className="py-3 pr-4 sm:pr-5">
+                          <div className="flex justify-end gap-1">
+                            <IconAction onClick={() => setEditing(product)} label={t('common.edit')}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </IconAction>
+                            {actions.canArchive && (
+                              <IconAction
+                                onClick={() => archiveMutation.mutate({ id: product.id, active: false })}
+                                label={t('invoices.products.action.archive')}
+                              >
+                                <Archive className="h-3.5 w-3.5" />
+                              </IconAction>
+                            )}
+                            {actions.canRestore && (
+                              <IconAction
+                                onClick={() => archiveMutation.mutate({ id: product.id, active: true })}
+                                label={t('invoices.products.action.restore')}
+                              >
+                                <ArchiveRestore className="h-3.5 w-3.5" />
+                              </IconAction>
+                            )}
+                            {actions.canDelete && (
+                              <IconAction onClick={() => deleteMutation.mutate(product.id)} label={t('common.delete')}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </IconAction>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      <ProductDialog
+        key={editing === null ? 'closed' : editing === 'new' ? 'new' : editing.id}
+        open={editing !== null}
+        onOpenChange={(open) => !open && setEditing(null)}
+        product={editing === 'new' ? null : editing}
+        onSaved={refresh}
+      />
+    </div>
+  )
+}
+
+interface PriceRow {
+  id: string | null
+  currency: string
+  unit_price: string
+  tax_rate: string
+  billing: PriceBilling
+  interval: InvoiceScheduleFrequency | ''
+  nickname: string
+  active: boolean
+}
+
+function blankPrice(currency: string): PriceRow {
+  return { id: null, currency, unit_price: '', tax_rate: '', billing: 'one_time', interval: '', nickname: '', active: true }
+}
+
+function toPayload(row: PriceRow): PricePayload {
+  return {
+    currency: row.currency,
+    unit_price: row.unit_price,
+    tax_rate: row.tax_rate || null,
+    billing: row.billing,
+    interval: row.billing === 'recurring' && row.interval ? row.interval : null,
+    nickname: row.nickname || null,
+  }
+}
+
+export function ProductDialog({
+  open,
+  onOpenChange,
+  product,
+  onSaved,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** Null creates. */
+  product: Product | null
+  onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const { user } = useAuth()
+  const { data: settings } = useQuery({
+    queryKey: ['invoice-settings'],
+    queryFn: invoicesApi.settings,
+    enabled: open,
+  })
+  const showTax = (settings?.tax_fields ?? 'hidden') !== 'hidden'
+  const defaultCurrency = user?.preferences?.currency_display ?? 'USD'
+
+  const [name, setName] = useState(product?.name ?? '')
+  const [kind, setKind] = useState<ProductKind>(product?.kind ?? 'service')
+  const [unit, setUnit] = useState(product?.unit ?? '')
+  const [description, setDescription] = useState(product?.description ?? '')
+  const [prices, setPrices] = useState<PriceRow[]>(
+    product
+      ? product.prices.map((p) => ({
+          id: p.id,
+          currency: p.currency,
+          unit_price: p.unit_price,
+          tax_rate: p.tax_rate ?? '',
+          billing: p.billing,
+          interval: p.interval ?? '',
+          nickname: p.nickname ?? '',
+          active: p.active,
+        }))
+      : [blankPrice(defaultCurrency)],
+  )
+
+  const updatePrice = (index: number, patch: Partial<PriceRow>) =>
+    setPrices(prices.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+
+  const onError = (error: unknown) => {
+    const key = invoiceErrorKey(error)
+    toast.error(key ? t(key, t('invoices.errors.generic')) : t('invoices.errors.generic'))
+  }
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const filled = prices.filter((row) => row.unit_price !== '')
+      const base = { name, kind, unit: unit || null, description: description || null }
+      if (!product) {
+        return productsApi.create({ ...base, prices: filled.map(toPayload) })
+      }
+      // Product fields, then each price by what happened to it: new rows
+      // are added, kept rows updated, and rows removed here are deleted
+      // on the server (which refuses one an invoice was billed at, and
+      // says so).
+      let saved = await productsApi.update(product.id, base)
+      const keptIds = new Set(filled.map((row) => row.id).filter(Boolean))
+      for (const old of product.prices) {
+        if (!keptIds.has(old.id)) saved = await productsApi.removePrice(product.id, old.id)
+      }
+      for (const row of filled) {
+        saved = row.id
+          ? await productsApi.updatePrice(product.id, row.id, { ...toPayload(row), active: row.active })
+          : await productsApi.addPrice(product.id, toPayload(row))
+      }
+      return saved
+    },
+    onSuccess: () => {
+      toast.success(product ? t('invoices.products.saved') : t('invoices.products.created'))
+      onOpenChange(false)
+      onSaved()
+    },
+    onError,
+  })
+
+  const ready = name.trim().length > 0 && prices.every((row) => row.billing !== 'recurring' || row.interval !== '' || row.unit_price === '')
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex flex-col max-h-[calc(100dvh-2rem)] sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{product ? t('invoices.products.editTitle') : t('invoices.products.new')}</DialogTitle>
+          <DialogDescription>{t('invoices.products.newDescription')}</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_9rem_6rem] gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="product-name">{t('invoices.products.field.name')}</Label>
+              <Input id="product-name" data-testid="product-name-input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('invoices.products.field.namePlaceholder')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('invoices.products.field.kind')}</Label>
+              <Select value={kind} onValueChange={(v) => setKind(v as ProductKind)}>
+                <SelectTrigger data-testid="product-kind-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(['service', 'product'] as const).map((value) => (
+                    <SelectItem key={value} value={value}>{t(`invoices.products.kind.${value}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="product-unit">{t('invoices.field.unit')}</Label>
+              <Input id="product-unit" data-testid="product-unit-input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder={t('invoices.field.unitPlaceholder')} maxLength={20} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="product-description">{t('invoices.products.field.description')}</Label>
+            <Input id="product-description" data-testid="product-description-input" value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>{t('invoices.products.field.prices')}</Label>
+              <Button size="sm" variant="ghost" onClick={() => setPrices([...prices, blankPrice(defaultCurrency)])} data-testid="product-add-price">
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {t('invoices.products.field.addPrice')}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{t('invoices.products.field.pricesHint')}</p>
+            <div className="rounded-lg border border-border divide-y divide-border">
+              {prices.map((row, index) => (
+                <div key={row.id ?? `new-${index}`} className={cn('grid grid-cols-2 sm:grid-cols-[7rem_1fr_9rem_8rem_2rem] gap-2 px-3 py-2.5 items-center', !row.active && 'opacity-60')} data-testid="product-price-row">
+                  <CurrencySelect id={`price-currency-${index}`} value={row.currency} onChange={(code) => updatePrice(index, { currency: code })} />
+                  <Input
+                    className="h-9 text-right"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={row.unit_price}
+                    onChange={(e) => updatePrice(index, { unit_price: e.target.value })}
+                    data-testid={`price-amount-${index}`}
+                    aria-label={t('invoices.field.unitPrice')}
+                  />
+                  <Select
+                    value={row.billing === 'recurring' ? row.interval || 'recurring' : 'one_time'}
+                    onValueChange={(v) =>
+                      v === 'one_time'
+                        ? updatePrice(index, { billing: 'one_time', interval: '' })
+                        : updatePrice(index, { billing: 'recurring', interval: v === 'recurring' ? '' : (v as InvoiceScheduleFrequency) })
+                    }
+                  >
+                    <SelectTrigger data-testid={`price-billing-${index}`}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="one_time">{t('invoices.products.billing.one_time')}</SelectItem>
+                      {FREQUENCIES.map((f) => (
+                        <SelectItem key={f} value={f}>{t('invoices.products.billing.every', { interval: t(`invoices.schedules.frequency.${f}`).toLowerCase() })}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    className="h-9"
+                    placeholder={t('invoices.products.field.nickname')}
+                    value={row.nickname}
+                    onChange={(e) => updatePrice(index, { nickname: e.target.value })}
+                    data-testid={`price-nickname-${index}`}
+                    maxLength={100}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                    onClick={() => setPrices(prices.filter((_, i) => i !== index))}
+                    data-testid={`price-remove-${index}`}
+                    aria-label={t('common.delete')}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  {showTax && (
+                    <div className="col-span-2 sm:col-span-5 flex items-center gap-2">
+                      <span className="text-[11px] text-muted-foreground">{t('invoices.field.taxRate')}</span>
+                      <Input className="h-8 w-20 text-right" inputMode="decimal" placeholder="%" value={row.tax_rate} onChange={(e) => updatePrice(index, { tax_rate: e.target.value })} data-testid={`price-tax-${index}`} />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {prices.length === 0 && (
+                <p className="px-3 py-3 text-xs text-muted-foreground">{t('invoices.products.field.noPrices')}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+          <Button onClick={() => mutation.mutate()} disabled={!ready || mutation.isPending} data-testid="product-save">
+            {product ? t('common.save') : t('common.create')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

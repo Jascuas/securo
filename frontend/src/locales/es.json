@@ -329,7 +329,17 @@
       "negative_discount": "Un descuento no puede ser negativo.",
       "first_term": "El precio vigente desde el inicio no se puede mover ni eliminar. Cámbialo o añade un nuevo precio a partir de una fecha posterior.",
       "not_receivable": "Solo una factura emitida por ti puede pertenecer a un acuerdo.",
-      "period_already_issued": "Este período se acaba de emitir. Actualiza para verlo."
+      "period_already_issued": "Este período se acaba de emitir. Actualiza para verlo.",
+      "product_not_found": "Producto no encontrado.",
+      "price_not_found": "Precio no encontrado en este producto.",
+      "product_in_use": "Hay facturas que mencionan este producto. Archívalo en lugar de eliminarlo.",
+      "price_in_use": "Hay facturas emitidas con este precio. Archívalo en lugar de eliminarlo.",
+      "invalid_kind": "Tipo de producto desconocido.",
+      "invalid_billing": "Tipo de facturación desconocido.",
+      "interval_required": "Un precio recurrente necesita una frecuencia.",
+      "currency_required": "Un precio necesita una moneda.",
+      "unit_price_required": "Un precio necesita un importe.",
+      "negative_price": "Un precio no puede ser negativo."
     },
     "comingNext": "Cobra a tus clientes y controla lo que ya se pagó y lo que sigue pendiente. Es lo próximo que se está construyendo.",
     "document": {
@@ -563,6 +573,68 @@
         "description": "Una por período, generada el mismo día. Una factura hecha a mano también se puede vincular.",
         "empty": "Aún no hay facturas bajo este acuerdo.",
         "emptyNext": "Aún no hay facturas. La primera se generará el {{date}}."
+      }
+    },
+    "products": {
+      "title": "Productos y servicios",
+      "new": "Nuevo producto",
+      "newDescription": "Algo que vendes, con un precio por moneda. Al elegirlo se rellena una línea de la factura; la línea sigue siendo tuya para cambiarla después.",
+      "editTitle": "Editar producto",
+      "empty": "Aún no hay productos. Añade lo que vendes y cada línea de factura estará a un clic.",
+      "emptyArchived": "Nada archivado.",
+      "emptyPicker": "Aún no hay productos. Añádelos en Productos y servicios.",
+      "noneFound": "Ningún producto coincide.",
+      "searchPlaceholder": "Buscar productos",
+      "pick": "Elegir del catálogo",
+      "fromCatalog": "Del catálogo",
+      "noPrice": "Sin precio",
+      "noPriceIn": "sin precio en {{currency}}",
+      "perUnit": "por {{unit}}",
+      "created": "Producto creado",
+      "saved": "Producto guardado",
+      "archived": "Producto archivado. Las facturas que lo mencionan no cambian.",
+      "restored": "Producto restaurado",
+      "deleted": "Producto eliminado",
+      "filter": {
+        "active": "Activos",
+        "archived": "Archivados"
+      },
+      "kind": {
+        "service": "Servicio",
+        "product": "Producto"
+      },
+      "billing": {
+        "one_time": "Pago único",
+        "every": "Cada {{interval}}"
+      },
+      "per": {
+        "weekly": "semana",
+        "biweekly": "2 semanas",
+        "monthly": "mes",
+        "quarterly": "trimestre",
+        "semiannual": "6 meses",
+        "yearly": "año"
+      },
+      "column": {
+        "name": "Nombre",
+        "kind": "Tipo",
+        "prices": "Precios",
+        "invoices": "Facturas"
+      },
+      "field": {
+        "name": "Nombre",
+        "namePlaceholder": "Hora de consultoría, Plan Pro, Diseño de logo",
+        "kind": "Tipo",
+        "description": "Descripción",
+        "prices": "Precios",
+        "pricesHint": "Uno por moneda. Un precio recurrente indica la frecuencia; es una sugerencia para facturas recurrentes, nada se cobra por sí solo.",
+        "addPrice": "Añadir precio",
+        "noPrices": "Sin precios. El nombre rellena la línea igualmente; el importe se escribe a mano.",
+        "nickname": "Etiqueta (opcional)"
+      },
+      "action": {
+        "archive": "Archivar",
+        "restore": "Restaurar"
       }
     }
   },

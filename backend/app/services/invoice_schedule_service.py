@@ -218,6 +218,11 @@ def _normalise_lines(lines: Any) -> list[dict[str, Any]]:
                 "tax_rate": (
                     str(Decimal(str(line["tax_rate"]))) if line.get("tax_rate") is not None else None
                 ),
+                # Catalog provenance, kept as text. Checked when the
+                # period is emitted, not here: a product archived or
+                # deleted later must not stop the agreement from billing.
+                "product_id": str(line["product_id"]) if line.get("product_id") else None,
+                "price_id": str(line["price_id"]) if line.get("price_id") else None,
             }
         )
     return out
@@ -880,6 +885,8 @@ def _lines_from_invoice(invoice: Invoice, fallback_description: str) -> list[dic
                 "unit": line.unit,
                 "unit_price": line.unit_price,
                 "tax_rate": line.tax_rate,
+                "product_id": line.product_id,
+                "price_id": line.price_id,
             }
             for line in invoice.lines
         ]
@@ -983,6 +990,13 @@ async def _emit(
     if term is None:
         raise InvoiceError("no_term", "No term is in force for this period")
     terms_days = await _payment_terms(session, schedule)
+    # The term may name a product that has since been deleted. The line
+    # has its own values, so the id is dropped and the period is billed.
+    from app.services import product_service
+
+    lines = await product_service.resolve_lines(
+        session, schedule.workspace_id, [dict(line) for line in term.lines], strict=False
+    )
     if schedule.user_id is None:
         # The ledger stamps who created each invoice. An agreement whose
         # author left the workspace keeps emitting, and the invoice is
@@ -999,7 +1013,7 @@ async def _emit(
             "competence_date": start,
             "currency": schedule.currency,
             "discount": Decimal(term.discount),
-            "lines": [dict(line) for line in term.lines],
+            "lines": lines,
             "notes": schedule.notes,
             "custom_fields": schedule.custom_fields,
         },

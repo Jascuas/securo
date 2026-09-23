@@ -1066,6 +1066,10 @@ export type InvoiceState =
 
 export interface InvoiceLine {
   id: string
+  /** Where the line came from, when it came from the catalog. The
+   *  values below are still the line's own copy. */
+  product_id: string | null
+  price_id: string | null
   description: string
   quantity: string
   unit: string | null
@@ -1083,6 +1087,49 @@ export interface InvoiceLineInput {
   unit?: string | null
   unit_price: string
   tax_rate?: string | null
+  /** Set when the line was filled from a product. Kept when the person
+   *  then edits the values: it is still that product, at their price. */
+  product_id?: string | null
+  price_id?: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+export type ProductKind = 'service' | 'product'
+export type PriceBilling = 'one_time' | 'recurring'
+
+export interface ProductPrice {
+  id: string
+  product_id: string
+  currency: string
+  unit_price: string
+  tax_rate: string | null
+  billing: PriceBilling
+  interval: InvoiceScheduleFrequency | null
+  nickname: string | null
+  active: boolean
+  external_source: string | null
+  external_id: string | null
+  created_at: string
+}
+
+export interface Product {
+  id: string
+  name: string
+  description: string | null
+  kind: ProductKind
+  unit: string | null
+  active: boolean
+  origin: string
+  external_source: string | null
+  external_id: string | null
+  custom_fields: Record<string, string> | null
+  prices: ProductPrice[]
+  created_at: string
+  /** Derived by the server: how many invoices name this product. */
+  invoice_count: number
 }
 
 export interface InvoiceAllocation {
