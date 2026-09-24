@@ -250,11 +250,18 @@ def _schedule_table(document: InvoiceDocument) -> Optional[Table]:
     """
     if not document.installments:
         return None
-    rows = [[_label(document.labels["schedule"]), _label(document.labels["dueDate"]), _label(document.labels["amount"])]]
+    # The same treatment as the lines below it: a ruled header, a hairline
+    # between rows, and every money column right-aligned, header included.
+    header = [
+        _label(document.labels["schedule"]),
+        _label(document.labels["dueDate"]),
+        _para(document.labels["amount"].upper(), size=7, color=MUTED, bold=True, align=TA_RIGHT),
+    ]
+    rows = [header]
     for index, installment in enumerate(document.installments, start=1):
         rows.append([
             _para(installment.label or f"{index}/{len(document.installments)}"),
-            _para(installment.due_date.isoformat()),
+            _para(installment.due_date.isoformat(), color=MUTED),
             _para(_money(installment.amount, document.currency), align=TA_RIGHT),
         ])
     table = Table(
@@ -265,8 +272,10 @@ def _schedule_table(document: InvoiceDocument) -> Optional[Table]:
     )
     table.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, RULE),
+        ("LINEBELOW", (0, 1), (-1, -2), 0.4, RULE),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))

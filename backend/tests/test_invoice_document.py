@@ -657,6 +657,21 @@ class TestPageStructure:
             assert "FAT-7" in page.extract_text()
             assert _lowest_text_y(page) > 0, "text drawn below the bottom edge"
 
+    def test_the_schedule_amount_header_sits_over_its_amounts(self):
+        """Both AMOUNT headers are right-aligned like the figures under
+        them. The schedule's used to start at its column's left edge,
+        a quarter of the page away from the numbers it named."""
+        page = _pages(_doc(3, n_installments=2))[0]
+        xs: list[float] = []
+
+        def visit(text, cm, tm, font_dict, font_size):
+            if text.strip() == "AMOUNT":
+                xs.append(tm[4] * cm[0] + tm[5] * cm[2] + cm[4])
+
+        page.extract_text(visitor_text=visit)
+        assert len(xs) == 2
+        assert min(xs) > invoice_pdf.PAGE_WIDTH * 0.8
+
     @pytest.mark.parametrize("n_lines", [39, 40, 61, 62])
     def test_totals_never_sink_into_the_footer(self, n_lines):
         """Counts found by sweeping: the last chunk of the lines fit the
