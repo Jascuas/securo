@@ -2184,6 +2184,11 @@ export const invoices = {
     const { data } = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' })
     return data
   },
+  /** The statement of account: payments and deductions since issue. */
+  statement: async (id: string): Promise<Blob> => {
+    const { data } = await api.get(`/invoices/${id}/statement`, { responseType: 'blob' })
+    return data
+  },
   share: async (id: string): Promise<InvoiceShareLink> => {
     const { data } = await api.post(`/invoices/${id}/share`)
     return data

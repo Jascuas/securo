@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Сохранить черновик"
+      "saveDraft": "Сохранить черновик",
+      "downloadStatement": "Скачать выписку"
     },
     "settings": {
       "title": "Invoice settings",
@@ -699,7 +700,8 @@
       },
       "differenceTitle": "Платёж меньше на {{difference}}",
       "differenceHint": "Запишите разницу, чтобы закрыть счёт",
-      "differenceNone": "Не записывать"
+      "differenceNone": "Не записывать",
+      "figure": "Удержано"
     }
   },
   "collections": {

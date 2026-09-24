@@ -236,7 +236,8 @@
       "downloadPdf": "Baixar PDF",
       "share": "Compartilhar",
       "revokeLink": "Revogar link",
-      "saveDraft": "Salvar rascunho"
+      "saveDraft": "Salvar rascunho",
+      "downloadStatement": "Baixar extrato"
     },
     "settings": {
       "title": "Configurações de cobrança",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "O pagamento veio {{difference}} menor",
       "differenceHint": "Registre a diferença para a cobrança fechar",
-      "differenceNone": "Não registrar"
+      "differenceNone": "Não registrar",
+      "figure": "Deduzido"
     }
   },
   "collections": {

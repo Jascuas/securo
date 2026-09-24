@@ -236,7 +236,8 @@
       "downloadPdf": "Stiahnuť PDF",
       "share": "Zdieľať odkaz",
       "revokeLink": "Zrušiť odkaz",
-      "saveDraft": "Uložiť ako koncept"
+      "saveDraft": "Uložiť ako koncept",
+      "downloadStatement": "Stiahnuť výpis"
     },
     "settings": {
       "title": "Nastavenia faktúr",
@@ -699,7 +700,8 @@
       },
       "differenceTitle": "Platba je o {{difference}} nižšia",
       "differenceHint": "Zaznamenajte rozdiel, aby sa faktúra uzavrela",
-      "differenceNone": "Nezaznamenať"
+      "differenceNone": "Nezaznamenať",
+      "figure": "Zrazené"
     }
   },
   "collections": {

@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Als Entwurf speichern"
+      "saveDraft": "Als Entwurf speichern",
+      "downloadStatement": "Kontoauszug herunterladen"
     },
     "settings": {
       "title": "Invoice settings",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "Die Zahlung ist {{difference}} zu niedrig",
       "differenceHint": "Erfassen Sie die Differenz, damit die Rechnung geschlossen wird",
-      "differenceNone": "Nicht erfassen"
+      "differenceNone": "Nicht erfassen",
+      "figure": "Abgezogen"
     }
   },
   "collections": {

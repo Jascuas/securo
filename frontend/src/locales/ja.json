@@ -236,7 +236,8 @@
       "downloadPdf": "PDFをダウンロード",
       "share": "リンクを共有",
       "revokeLink": "リンクを失効",
-      "saveDraft": "下書き保存"
+      "saveDraft": "下書き保存",
+      "downloadStatement": "明細書をダウンロード"
     },
     "settings": {
       "title": "請求書設定",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "入金が {{difference}} 不足しています",
       "differenceHint": "差額を記録すると請求書が完了します",
-      "differenceNone": "記録しない"
+      "differenceNone": "記録しない",
+      "figure": "控除額"
     }
   },
   "collections": {

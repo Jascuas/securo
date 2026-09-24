@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Opslaan als concept"
+      "saveDraft": "Opslaan als concept",
+      "downloadStatement": "Rekeningoverzicht downloaden"
     },
     "settings": {
       "title": "Invoice settings",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "De betaling is {{difference}} te laag",
       "differenceHint": "Leg het verschil vast zodat de factuur wordt afgesloten",
-      "differenceNone": "Niet vastleggen"
+      "differenceNone": "Niet vastleggen",
+      "figure": "Ingehouden"
     }
   },
   "collections": {

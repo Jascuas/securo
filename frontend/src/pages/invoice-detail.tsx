@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ArrowLeft, Ban, Check, CheckCircle2, CircleSlash, Copy, Download, Link2,
+  ArrowLeft, Ban, Check, CheckCircle2, CircleSlash, Copy, Download, FileText, Link2,
   MinusCircle, MoreHorizontal, Pencil, Repeat, RotateCcw, Send, Share2, Trash2, Unlink,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -220,6 +220,22 @@ export default function InvoiceDetailPage() {
     onError,
   })
 
+  // The statement of account: what was paid and deducted since issue,
+  // and how that arrives at the balance. The invoice PDF is the document
+  // as issued and never shows it.
+  const statementMutation = useMutation({
+    mutationFn: async () => {
+      const blob = await invoicesApi.statement(id)
+      const url = URL.createObjectURL(blob)
+      const anchor = window.document.createElement('a')
+      anchor.href = url
+      anchor.download = `${invoice?.number ?? 'invoice'}-statement.pdf`
+      anchor.click()
+      URL.revokeObjectURL(url)
+    },
+    onError,
+  })
+
   const shareMutation = useMutation({
     mutationFn: () => invoicesApi.share(id),
     onSuccess: async (link) => {
@@ -276,6 +292,13 @@ export default function InvoiceDetailPage() {
     invoice.status !== 'draft' &&
     invoice.status !== 'void' &&
     !invoice.schedule_id
+  // Only for what we issued: a draft was sent to nobody, and a bill we
+  // received is the supplier's to state.
+  const canStatement =
+    invoice.direction === 'receivable' &&
+    invoice.status !== 'draft' &&
+    invoice.origin !== 'imported'
+  const hasDeductions = Number(invoice.amount_deducted) > 0
 
   return (
     <div>
@@ -368,6 +391,7 @@ export default function InvoiceDetailPage() {
                   weight as "mark as paid" is how someone voids by
                   reflex. */}
               {(canRecur ||
+                canStatement ||
                 invoice.schedule_id ||
                 actions.canWriteOff ||
                 actions.canReopen ||
@@ -388,6 +412,17 @@ export default function InvoiceDetailPage() {
                     align="end"
                     className="w-[220px] p-1 bg-card border border-border rounded-xl shadow-md"
                   >
+                    {canStatement && (
+                      <DropdownMenuItem
+                        onClick={() => statementMutation.mutate()}
+                        disabled={statementMutation.isPending}
+                        data-testid="invoice-download-statement"
+                        className="gap-2 text-sm"
+                      >
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        {t('invoices.action.downloadStatement')}
+                      </DropdownMenuItem>
+                    )}
                     {canRecur && (
                       <DropdownMenuItem
                         onClick={() => setRecurringOpen(true)}
@@ -522,7 +557,15 @@ export default function InvoiceDetailPage() {
       ) : (
         <div className="space-y-5">
           <SectionCard>
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-border">
+            {/* Total, then what reduced it, then what is left: read left
+                to right it is the arithmetic. Deductions only when there
+                are any, so an ordinary invoice keeps its four figures. */}
+            <div
+              className={cn(
+                'grid grid-cols-2 divide-x divide-border',
+                hasDeductions ? 'sm:grid-cols-5' : 'sm:grid-cols-4',
+              )}
+            >
               {[
                 { label: t('invoices.column.total'), value: money(invoice.total) },
                 {
@@ -532,6 +575,13 @@ export default function InvoiceDetailPage() {
                       : t('invoices.field.paid'),
                   value: money(invoice.amount_paid),
                 },
+                ...(hasDeductions
+                  ? [{
+                      label: t('invoices.deductions.figure'),
+                      value: money(invoice.amount_deducted),
+                      testId: 'invoice-deducted',
+                    }]
+                  : []),
                 {
                   label: t('invoices.column.balance'),
                   value: money(invoice.balance),

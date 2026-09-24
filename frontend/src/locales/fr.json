@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Enregistrer le brouillon"
+      "saveDraft": "Enregistrer le brouillon",
+      "downloadStatement": "Télécharger le relevé"
     },
     "settings": {
       "title": "Invoice settings",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "Il manque {{difference}} au paiement",
       "differenceHint": "Enregistrez la différence pour que la facture soit soldée",
-      "differenceNone": "Ne pas enregistrer"
+      "differenceNone": "Ne pas enregistrer",
+      "figure": "Déduit"
     }
   },
   "collections": {

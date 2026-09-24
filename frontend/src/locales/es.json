@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Guardar borrador"
+      "saveDraft": "Guardar borrador",
+      "downloadStatement": "Descargar estado de cuenta"
     },
     "settings": {
       "title": "Invoice settings",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "El pago llegó {{difference}} por debajo",
       "differenceHint": "Registre la diferencia para cerrar la factura",
-      "differenceNone": "No registrar"
+      "differenceNone": "No registrar",
+      "figure": "Deducido"
     }
   },
   "collections": {

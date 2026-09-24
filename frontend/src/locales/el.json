@@ -236,7 +236,8 @@
       "downloadPdf": "Λήψη PDF",
       "share": "Κοινοποίηση συνδέσμου",
       "revokeLink": "Ανάκληση συνδέσμου",
-      "saveDraft": "Αποθήκευση ως πρόχειρο"
+      "saveDraft": "Αποθήκευση ως πρόχειρο",
+      "downloadStatement": "Λήψη κατάστασης λογαριασμού"
     },
     "settings": {
       "title": "Ρυθμίσεις τιμολογίων",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "Η πληρωμή υπολείπεται κατά {{difference}}",
       "differenceHint": "Καταχωρίστε τη διαφορά για να κλείσει το τιμολόγιο",
-      "differenceNone": "Να μην καταχωριστεί"
+      "differenceNone": "Να μην καταχωριστεί",
+      "figure": "Παρακρατήθηκε"
     }
   },
   "collections": {

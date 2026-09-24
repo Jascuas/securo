@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Zapisz szkic"
+      "saveDraft": "Zapisz szkic",
+      "downloadStatement": "Pobierz wyciąg"
     },
     "settings": {
       "title": "Invoice settings",
@@ -699,7 +700,8 @@
       },
       "differenceTitle": "Płatność jest niższa o {{difference}}",
       "differenceHint": "Zarejestruj różnicę, aby zamknąć fakturę",
-      "differenceNone": "Nie rejestruj"
+      "differenceNone": "Nie rejestruj",
+      "figure": "Potrącono"
     }
   },
   "collections": {

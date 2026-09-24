@@ -701,6 +701,44 @@ async def download_pdf(
     )
 
 
+@router.get("/{invoice_id}/statement")
+async def download_statement(
+    invoice_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(read_ctx),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """The statement of account: what was paid and deducted since the
+    invoice was issued, and how that arrives at the balance.
+
+    Rendered live on purpose, unlike `/pdf`: the invoice as issued is
+    frozen, and this is the document that is supposed to change.
+
+    Only for what we issued. A draft has been sent to nobody, and a bill
+    we received is the supplier's to state; a page in their name drawn by
+    us would be the invention `/pdf` refuses too.
+    """
+    invoice = await _load(session, invoice_id, ctx.workspace.id)
+    if invoice.status == "draft":
+        raise _http(InvoiceError("statement_of_draft", "A draft has nothing to state yet", status_code=status.HTTP_409_CONFLICT))
+    if invoice.direction != "receivable" or invoice.origin == "imported":
+        raise _http(InvoiceError("statement_not_ours", "Only an invoice we issued has a statement", status_code=status.HTTP_409_CONFLICT))
+
+    settings = await invoice_service.get_settings(session, ctx.workspace.id)
+    document = await invoice_document.build_statement(session, invoice, settings, ctx.workspace)
+    logo_bytes = (
+        await invoice_logo_service.read(ctx.workspace.id, uuid.UUID(document.logo_id))
+        if document.logo_id
+        else None
+    )
+    pdf = invoice_pdf.render_pdf(document, logo_bytes)
+    filename = f"{document.number or 'invoice'}-statement.pdf".replace("/", "-")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.post("/{invoice_id}/share", response_model=ShareLinkRead, status_code=status.HTTP_201_CREATED)
 async def create_share_link(
     invoice_id: uuid.UUID,

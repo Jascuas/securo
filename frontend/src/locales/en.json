@@ -236,7 +236,8 @@
       "downloadPdf": "Download PDF",
       "share": "Share link",
       "revokeLink": "Revoke link",
-      "saveDraft": "Save as draft"
+      "saveDraft": "Save as draft",
+      "downloadStatement": "Download statement"
     },
     "settings": {
       "title": "Invoice settings",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "The payment is {{difference}} short",
       "differenceHint": "Record the difference so the invoice closes",
-      "differenceNone": "Do not record"
+      "differenceNone": "Do not record",
+      "figure": "Deducted"
     }
   },
   "collections": {

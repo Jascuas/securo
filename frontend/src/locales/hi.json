@@ -236,7 +236,8 @@
       "downloadPdf": "PDF डाउनलोड करें",
       "share": "लिंक शेयर करें",
       "revokeLink": "लिंक रद्द करें",
-      "saveDraft": "ड्राफ़्ट के रूप में सहेजें"
+      "saveDraft": "ड्राफ़्ट के रूप में सहेजें",
+      "downloadStatement": "विवरण डाउनलोड करें"
     },
     "settings": {
       "title": "इनवॉइस सेटिंग्स",
@@ -695,7 +696,8 @@
       },
       "differenceTitle": "भुगतान {{difference}} कम है",
       "differenceHint": "इनवॉइस बंद करने के लिए अंतर दर्ज करें",
-      "differenceNone": "दर्ज न करें"
+      "differenceNone": "दर्ज न करें",
+      "figure": "कटौती"
     }
   },
   "collections": {

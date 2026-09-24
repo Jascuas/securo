@@ -60,6 +60,14 @@ DEFAULT_LABELS: dict[str, str] = {
     "paid": "Paid",
     "deducted": "Deductions",
     "balance": "Balance due",
+    "statement": "Statement of account",
+    "history": "Payments and deductions",
+    "date": "Date",
+    "payment": "Payment received",
+    "withholdingTax": "Tax withheld",
+    "gatewayFee": "Processing fee",
+    "fxDifference": "Currency difference",
+    "otherDeduction": "Other deduction",
     "paymentDetails": "Payment details",
     "notes": "Notes",
     "schedule": "Payment schedule",
@@ -93,6 +101,14 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Recebido",
         "deducted": "Deduções",
         "balance": "Saldo devedor",
+        "statement": "Extrato da fatura",
+        "history": "Pagamentos e deduções",
+        "date": "Data",
+        "payment": "Pagamento recebido",
+        "withholdingTax": "Imposto retido",
+        "gatewayFee": "Taxa de processamento",
+        "fxDifference": "Diferença de câmbio",
+        "otherDeduction": "Outra dedução",
         "paymentDetails": "Dados para pagamento",
         "schedule": "Cronograma de pagamento",
         "notes": "Observações",
@@ -115,6 +131,14 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Cobrado",
         "deducted": "Deducciones",
         "balance": "Saldo pendiente",
+        "statement": "Estado de cuenta",
+        "history": "Pagos y deducciones",
+        "date": "Fecha",
+        "payment": "Pago recibido",
+        "withholdingTax": "Impuesto retenido",
+        "gatewayFee": "Comisión de procesamiento",
+        "fxDifference": "Diferencia de cambio",
+        "otherDeduction": "Otra deducción",
         "paymentDetails": "Datos de pago",
         "schedule": "Calendario de pagos",
         "notes": "Notas",
@@ -137,6 +161,14 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Réglé",
         "deducted": "Déductions",
         "balance": "Reste à payer",
+        "statement": "Relevé de compte",
+        "history": "Paiements et déductions",
+        "date": "Date",
+        "payment": "Paiement reçu",
+        "withholdingTax": "Impôt retenu",
+        "gatewayFee": "Frais de traitement",
+        "fxDifference": "Écart de change",
+        "otherDeduction": "Autre déduction",
         "paymentDetails": "Coordonnées de paiement",
         "schedule": "Échéancier",
         "notes": "Notes",
@@ -159,6 +191,14 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Bezahlt",
         "deducted": "Abzüge",
         "balance": "Offener Betrag",
+        "statement": "Kontoauszug",
+        "history": "Zahlungen und Abzüge",
+        "date": "Datum",
+        "payment": "Zahlung erhalten",
+        "withholdingTax": "Einbehaltene Steuer",
+        "gatewayFee": "Bearbeitungsgebühr",
+        "fxDifference": "Währungsdifferenz",
+        "otherDeduction": "Sonstiger Abzug",
         "paymentDetails": "Zahlungsinformationen",
         "schedule": "Zahlungsplan",
         "notes": "Hinweise",
@@ -181,6 +221,14 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Incassato",
         "deducted": "Trattenute",
         "balance": "Saldo dovuto",
+        "statement": "Estratto conto",
+        "history": "Pagamenti e trattenute",
+        "date": "Data",
+        "payment": "Pagamento ricevuto",
+        "withholdingTax": "Ritenuta d'acconto",
+        "gatewayFee": "Commissione di elaborazione",
+        "fxDifference": "Differenza di cambio",
+        "otherDeduction": "Altra trattenuta",
         "paymentDetails": "Dati per il pagamento",
         "schedule": "Scadenze di pagamento",
         "notes": "Note",
@@ -235,6 +283,17 @@ class DocumentLine:
 
 
 @dataclass(frozen=True)
+class DocumentMovement:
+    """One settlement on a statement: money that arrived, or an amount
+    closed without it. The description is already in the document's
+    language and says what kind it was, never the bank's own text."""
+
+    day: _date
+    description: str
+    amount: Decimal
+
+
+@dataclass(frozen=True)
 class DocumentInstallment:
     label: Optional[str]
     due_date: _date
@@ -284,6 +343,12 @@ class InvoiceDocument:
     #: Rendered as a small table under the header so the client sees
     #: the same split they agreed to.
     installments: list[DocumentInstallment] = field(default_factory=list)
+    #: Set on a statement of account: what settled the invoice, in date
+    #: order. Empty on the invoice itself, which is the document as issued.
+    movements: list[DocumentMovement] = field(default_factory=list)
+    #: A statement of account rather than the invoice: titled as one, and
+    #: always showing what is paid, deducted and left.
+    statement: bool = False
 
 
 def _label_map(
@@ -504,6 +569,52 @@ async def build_document(
         has_line_items=bool(invoice.lines),
         direction=invoice.direction,
     )
+
+
+#: The document label for each deduction kind, so a statement names the
+#: reason in the document's language.
+_DEDUCTION_LABEL = {
+    "withholding_tax": "withholdingTax",
+    "gateway_fee": "gatewayFee",
+    "fx_difference": "fxDifference",
+    "other": "otherDeduction",
+}
+
+
+async def build_statement(
+    session: AsyncSession,
+    invoice: Invoice,
+    settings: InvoiceSettings,
+    workspace: Workspace,
+) -> InvoiceDocument:
+    """The invoice's statement of account: the document with what settled
+    it since, and how that arrives at the balance.
+
+    The invoice as issued stays what it was (see `invoice_archive`); this
+    is the other document, the one that is supposed to change. Payments
+    are named as payments, not by the bank's text, which is the
+    workspace's own record and has no business on a page sent out. Notes
+    on deductions stay off it for the same reason.
+    """
+    from dataclasses import replace
+
+    document = await build_document(session, invoice, settings, workspace)
+    labels = document.labels
+    movements: list[DocumentMovement] = []
+    for allocation in invoice.allocations:
+        day = (
+            allocation.transaction.date
+            if allocation.transaction is not None
+            else allocation.allocated_at.date()
+        )
+        movements.append(DocumentMovement(day, labels["payment"], allocation.amount))
+    for deduction in invoice.deductions:
+        description = labels[_DEDUCTION_LABEL.get(deduction.kind, "otherDeduction")]
+        if deduction.tax_kind:
+            description = f"{description} ({deduction.tax_kind.upper()})"
+        movements.append(DocumentMovement(deduction.deducted_at.date(), description, deduction.amount))
+    movements.sort(key=lambda m: m.day)
+    return replace(document, movements=movements, statement=True)
 
 
 def document_payload(document: InvoiceDocument) -> dict[str, Any]:

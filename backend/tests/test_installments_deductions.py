@@ -366,3 +366,93 @@ async def test_gates(client: AsyncClient, biz_headers, viewer_headers, auth_head
     other = await client.post("/api/workspaces", headers=auth_headers, json={"name": "Outra", "kind": "business", "self_membership": True})
     other_headers = {**auth_headers, "X-Workspace-Id": other.json()["id"]}
     assert (await client.post(f"/api/invoices/{iid}/deductions", headers=other_headers, json={"kind": "other", "amount": "1"})).status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Statement of account: how the invoice arrives at its balance
+# ---------------------------------------------------------------------------
+def _pdf_text(content: bytes) -> str:
+    import io
+
+    import pypdf
+
+    return "\n".join(page.extract_text() for page in pypdf.PdfReader(io.BytesIO(content)).pages)
+
+
+@pytest.mark.asyncio
+async def test_the_statement_walks_from_the_total_to_the_balance(
+    client: AsyncClient, biz_headers, session, ws_id, test_user, account
+):
+    """The invoice PDF is the document as issued and stays so. The
+    statement is the one that says what happened since: each payment and
+    deduction, then total, paid, deducted and what is left."""
+    invoice = (await client.post(
+        "/api/invoices", headers=biz_headers,
+        json={"total": "3000.00", "issue_date": str(ISSUE), "currency": "USD",
+              "installments": [{"due_date": "2026-10-01", "amount": "1500.00"},
+                               {"due_date": "2026-12-01", "amount": "1500.00"}]},
+    )).json()
+    tx = await credit(session, ws_id, test_user.id, account, "1455.00", on=date(2026, 9, 20))
+    resp = await client.post(
+        f"/api/invoices/{invoice['id']}/allocations", headers=biz_headers,
+        json={"transaction_id": str(tx.id)},
+    )
+    assert resp.status_code in (200, 201), resp.text
+    resp = await client.post(
+        f"/api/invoices/{invoice['id']}/deductions", headers=biz_headers,
+        json={"kind": "withholding_tax", "tax_kind": "irrf", "amount": "45.00", "note": "internal note",
+              "transaction_id": str(tx.id)},
+    )
+    assert resp.status_code == 201, resp.text
+
+    resp = await client.get(f"/api/invoices/{invoice['id']}/statement", headers=biz_headers)
+    assert resp.status_code == 200, resp.text
+    assert resp.headers["content-type"] == "application/pdf"
+    assert "statement" in resp.headers["content-disposition"]
+    text = _pdf_text(resp.content)
+    # Titled as a statement, in the workspace's language (Portuguese here).
+    assert "Extrato da fatura" in text
+    # Each movement, named by kind and never by the bank's or our own text.
+    assert "Pagamento recebido" in text and "USD 1,455.00" in text
+    assert "Imposto retido (IRRF)" in text and "USD 45.00" in text
+    assert "internal note" not in text and "PIX" not in text
+    # And the walk from the total to the balance.
+    assert "Deduções" in text and "USD 1,500.00" in text
+
+    # The invoice itself is still the invoice.
+    invoice_pdf = await client.get(f"/api/invoices/{invoice['id']}/pdf", headers=biz_headers)
+    assert "Extrato da fatura" not in _pdf_text(invoice_pdf.content)
+
+
+@pytest.mark.asyncio
+async def test_an_untouched_invoice_states_its_whole_balance(client: AsyncClient, biz_headers):
+    invoice = (await client.post("/api/invoices", headers=biz_headers, json={"total": "800.00", "currency": "USD"})).json()
+    resp = await client.get(f"/api/invoices/{invoice['id']}/statement", headers=biz_headers)
+    assert resp.status_code == 200
+    text = _pdf_text(resp.content)
+    assert "Saldo devedor" in text and "USD 800.00" in text
+
+
+@pytest.mark.asyncio
+async def test_no_statement_for_a_draft_or_a_bill_we_received(client: AsyncClient, biz_headers):
+    draft = (await client.post("/api/invoices", headers=biz_headers, json={"total": "10.00", "as_draft": True})).json()
+    resp = await client.get(f"/api/invoices/{draft['id']}/statement", headers=biz_headers)
+    assert resp.status_code == 409 and resp.json()["detail"]["code"] == "statement_of_draft"
+
+    bill = (await client.post("/api/invoices", headers=biz_headers, json={"total": "10.00", "direction": "payable"})).json()
+    resp = await client.get(f"/api/invoices/{bill['id']}/statement", headers=biz_headers)
+    assert resp.status_code == 409 and resp.json()["detail"]["code"] == "statement_not_ours"
+
+
+@pytest.mark.asyncio
+async def test_the_statement_stays_inside_its_workspace(client: AsyncClient, biz_headers, auth_headers):
+    invoice = (await client.post("/api/invoices", headers=biz_headers, json={"total": "10.00"})).json()
+    other = (await client.post(
+        "/api/workspaces", headers=auth_headers,
+        json={"name": "Other", "kind": "business", "self_membership": True},
+    )).json()
+    resp = await client.get(
+        f"/api/invoices/{invoice['id']}/statement",
+        headers={**auth_headers, "X-Workspace-Id": other["id"]},
+    )
+    assert resp.status_code == 404

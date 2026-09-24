@@ -113,6 +113,14 @@ def _para(
     return Paragraph(escape(text).replace("\n", "<br/>"), style)
 
 
+def _title(document: InvoiceDocument) -> str:
+    """What the page says it is. A statement must never read as the
+    invoice: the invoice is the document as issued, and a second page
+    with the same title and different figures is the drift the archive
+    exists to prevent."""
+    return document.labels["statement"] if document.statement else document.labels["invoice"]
+
+
 def _label(text: str) -> Paragraph:
     """A section label. Small, spaced, quiet — the same treatment the web
     preview gives it, so the two read as one design."""
@@ -181,7 +189,7 @@ def _draw_header(canvas, document: InvoiceDocument, accent, logo_bytes) -> float
 
     canvas.setFont("Helvetica-Bold", 19)
     canvas.setFillColor(INK)
-    canvas.drawString(MARGIN, y - 6.5 * mm, document.labels["invoice"])
+    canvas.drawString(MARGIN, y - 6.5 * mm, _title(document))
 
     if document.number:
         canvas.setFont("Helvetica-Bold", 12.5)
@@ -282,6 +290,41 @@ def _schedule_table(document: InvoiceDocument) -> Optional[Table]:
     return table
 
 
+def _movements_table(document: InvoiceDocument) -> Optional[Table]:
+    """On a statement: every payment and deduction, by date, so the reader
+    can walk from the total to the balance line by line."""
+    if not document.movements:
+        return None
+    header = [
+        _label(document.labels["history"]),
+        _label(document.labels["date"]),
+        _para(document.labels["amount"].upper(), size=7, color=MUTED, bold=True, align=TA_RIGHT),
+    ]
+    rows = [header]
+    for movement in document.movements:
+        rows.append([
+            _para(movement.description),
+            _para(movement.day.isoformat(), color=MUTED),
+            _para(_money(movement.amount, document.currency), align=TA_RIGHT),
+        ])
+    table = Table(
+        rows,
+        colWidths=[CONTENT_WIDTH * 0.5, CONTENT_WIDTH * 0.25, CONTENT_WIDTH * 0.25],
+        repeatRows=1,
+        splitInRow=1,
+    )
+    table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.6, RULE),
+        ("LINEBELOW", (0, 1), (-1, -2), 0.4, RULE),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return table
+
+
 def _lines_table(document: InvoiceDocument) -> Optional[Table]:
     if not document.lines:
         return None
@@ -339,7 +382,8 @@ def _totals_table(document: InvoiceDocument, accent) -> Table:
     # balance 1,500, and the 45 the client withheld would be missing.
     paid = document.amount_paid or Decimal("0")
     deducted = document.amount_deducted or Decimal("0")
-    if paid > 0 or deducted > 0:
+    # A statement always shows them: saying what is left is its purpose.
+    if paid > 0 or deducted > 0 or document.statement:
         if paid > 0:
             rows.append((document.labels["paid"], _money(paid, document.currency), False))
         if deducted > 0:
@@ -459,7 +503,7 @@ def render_pdf(document: InvoiceDocument, logo_bytes: Optional[bytes] = None) ->
     accent = _accent(document.accent_color)
     buffer = io.BytesIO()
     canvas = pdf_canvas.Canvas(buffer, pagesize=A4)
-    canvas.setTitle(f"{document.labels['invoice']} {document.number or ''}".strip())
+    canvas.setTitle(f"{_title(document)} {document.number or ''}".strip())
 
     footer, closing = _footer_flowables(document)
     footer_height = _footer_height(footer, closing)
@@ -478,13 +522,18 @@ def render_pdf(document: InvoiceDocument, logo_bytes: Optional[bytes] = None) ->
     # final chunk needs room for both.
     reserve = totals_height + 8 * mm
 
-    schedule = _schedule_table(document)
-    if schedule is not None:
-        y = _flow(canvas, document, accent, schedule, y, floor, pages, reserve=reserve if lines is None else 0.0)
-        y -= 8 * mm
-
-    if lines is not None:
-        y = _flow(canvas, document, accent, lines, y, floor, pages, reserve=reserve)
+    # When, what, then (on a statement) what settled it. Each table is
+    # flowed in turn; only the last one has to leave room for the totals.
+    tables = [
+        table
+        for table in (_schedule_table(document), lines, _movements_table(document))
+        if table is not None
+    ]
+    for index, table in enumerate(tables):
+        last = index == len(tables) - 1
+        y = _flow(canvas, document, accent, table, y, floor, pages, reserve=reserve if last else 0.0)
+        if not last:
+            y -= 8 * mm
 
     y -= 8 * mm
     if y - totals_height < floor:
@@ -578,7 +627,7 @@ def _draw_continuation_header(canvas, document: InvoiceDocument, accent) -> floa
     y = PAGE_HEIGHT - MARGIN
     canvas.setFont("Helvetica-Bold", 11)
     canvas.setFillColor(INK)
-    canvas.drawString(MARGIN, y - 4 * mm, document.labels["invoice"])
+    canvas.drawString(MARGIN, y - 4 * mm, _title(document))
     if document.number:
         canvas.setFont("Helvetica-Bold", 11)
         canvas.setFillColor(accent)
