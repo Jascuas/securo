@@ -698,6 +698,13 @@
       "differenceHint": "Registra la differenza per chiudere la fattura",
       "differenceNone": "Non registrare",
       "figure": "Trattenuto"
+    },
+    "statement": {
+      "asIssued": "Fattura come emessa",
+      "asIssuedHint": "Il documento inviato al cliente",
+      "hint": "Pagamenti e trattenute dall'emissione, e il saldo",
+      "banner": "Questo PDF è la fattura come emessa. Da allora sono stati ricevuti {{paid}} e trattenuti {{deducted}}: l'estratto conto mostra ogni voce e il saldo.",
+      "title": "Estratto conto"
     }
   },
   "collections": {

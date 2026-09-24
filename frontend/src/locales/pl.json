@@ -702,6 +702,13 @@
       "differenceHint": "Zarejestruj różnicę, aby zamknąć fakturę",
       "differenceNone": "Nie rejestruj",
       "figure": "Potrącono"
+    },
+    "statement": {
+      "asIssued": "Faktura w wystawionej postaci",
+      "asIssuedHint": "Dokument wysłany do klienta",
+      "hint": "Płatności i potrącenia od wystawienia oraz saldo",
+      "banner": "Ten PDF to faktura w wystawionej postaci. Od tego czasu otrzymano {{paid}} i potrącono {{deducted}}: wyciąg pokazuje każdą pozycję i saldo.",
+      "title": "Wyciąg z konta"
     }
   },
   "collections": {

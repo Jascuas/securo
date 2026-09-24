@@ -698,6 +698,13 @@
       "differenceHint": "Erfassen Sie die Differenz, damit die Rechnung geschlossen wird",
       "differenceNone": "Nicht erfassen",
       "figure": "Abgezogen"
+    },
+    "statement": {
+      "asIssued": "Rechnung wie ausgestellt",
+      "asIssuedHint": "Das an den Kunden gesendete Dokument",
+      "hint": "Zahlungen und Abzüge seit Ausstellung, und der Saldo",
+      "banner": "Dieses PDF ist die Rechnung wie ausgestellt. Seitdem wurden {{paid}} erhalten und {{deducted}} abgezogen: der Kontoauszug zeigt jeden Posten und den Saldo.",
+      "title": "Kontoauszug"
     }
   },
   "collections": {

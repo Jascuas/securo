@@ -698,6 +698,13 @@
       "differenceHint": "Enregistrez la différence pour que la facture soit soldée",
       "differenceNone": "Ne pas enregistrer",
       "figure": "Déduit"
+    },
+    "statement": {
+      "asIssued": "Facture telle qu'émise",
+      "asIssuedHint": "Le document envoyé au client",
+      "hint": "Paiements et déductions depuis l'émission, et le solde",
+      "banner": "Ce PDF est la facture telle qu'émise. Depuis, {{paid}} ont été reçus et {{deducted}} déduits : le relevé de compte détaille chacun et le solde.",
+      "title": "Relevé de compte"
     }
   },
   "collections": {

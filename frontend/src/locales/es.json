@@ -698,6 +698,13 @@
       "differenceHint": "Registre la diferencia para cerrar la factura",
       "differenceNone": "No registrar",
       "figure": "Deducido"
+    },
+    "statement": {
+      "asIssued": "Factura tal como se emitió",
+      "asIssuedHint": "El documento enviado al cliente",
+      "hint": "Pagos y deducciones desde la emisión, y el saldo",
+      "banner": "Este PDF es la factura tal como se emitió. Desde entonces se recibieron {{paid}} y se dedujeron {{deducted}}: el estado de cuenta muestra cada uno y el saldo.",
+      "title": "Estado de cuenta"
     }
   },
   "collections": {

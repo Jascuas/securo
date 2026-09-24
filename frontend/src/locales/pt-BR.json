@@ -698,6 +698,13 @@
       "differenceHint": "Registre a diferença para a cobrança fechar",
       "differenceNone": "Não registrar",
       "figure": "Deduzido"
+    },
+    "statement": {
+      "asIssued": "Fatura como emitida",
+      "asIssuedHint": "O documento enviado ao cliente",
+      "hint": "Pagamentos e deduções desde a emissão, e o saldo",
+      "banner": "Este PDF é a fatura como foi emitida. Desde então foram recebidos {{paid}} e deduzidos {{deducted}}: o extrato mostra cada um e o saldo.",
+      "title": "Extrato da fatura"
     }
   },
   "collections": {

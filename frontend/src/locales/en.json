@@ -698,6 +698,13 @@
       "differenceHint": "Record the difference so the invoice closes",
       "differenceNone": "Do not record",
       "figure": "Deducted"
+    },
+    "statement": {
+      "asIssued": "Invoice as issued",
+      "asIssuedHint": "The document sent to the client",
+      "hint": "Payments and deductions since issue, and the balance",
+      "banner": "This PDF is the invoice as issued. Since then {{paid}} was received and {{deducted}} deducted: the statement of account shows each one and the balance.",
+      "title": "Statement of account"
     }
   },
   "collections": {

@@ -698,6 +698,13 @@
       "differenceHint": "Leg het verschil vast zodat de factuur wordt afgesloten",
       "differenceNone": "Niet vastleggen",
       "figure": "Ingehouden"
+    },
+    "statement": {
+      "asIssued": "Factuur zoals uitgegeven",
+      "asIssuedHint": "Het document dat naar de klant is gestuurd",
+      "hint": "Betalingen en inhoudingen sinds uitgifte, en het saldo",
+      "banner": "Deze PDF is de factuur zoals uitgegeven. Sindsdien is {{paid}} ontvangen en {{deducted}} ingehouden: het rekeningoverzicht toont elke post en het saldo.",
+      "title": "Rekeningoverzicht"
     }
   },
   "collections": {

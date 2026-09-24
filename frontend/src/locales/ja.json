@@ -698,6 +698,13 @@
       "differenceHint": "差額を記録すると請求書が完了します",
       "differenceNone": "記録しない",
       "figure": "控除額"
+    },
+    "statement": {
+      "asIssued": "発行時の請求書",
+      "asIssuedHint": "顧客に送付した書類",
+      "hint": "発行後の入金と控除、および残高",
+      "banner": "このPDFは発行時の請求書です。その後 {{paid}} が入金され、{{deducted}} が控除されました。明細書で各項目と残高を確認できます。",
+      "title": "取引明細書"
     }
   },
   "collections": {

@@ -702,6 +702,13 @@
       "differenceHint": "Zaznamenajte rozdiel, aby sa faktúra uzavrela",
       "differenceNone": "Nezaznamenať",
       "figure": "Zrazené"
+    },
+    "statement": {
+      "asIssued": "Faktúra v vystavenej podobe",
+      "asIssuedHint": "Dokument odoslaný klientovi",
+      "hint": "Platby a zrážky od vystavenia a zostatok",
+      "banner": "Toto PDF je faktúra vo vystavenej podobe. Odvtedy bolo prijatých {{paid}} a zrazených {{deducted}}: výpis ukazuje každú položku a zostatok.",
+      "title": "Výpis z účtu"
     }
   },
   "collections": {

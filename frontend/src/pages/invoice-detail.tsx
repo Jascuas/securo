@@ -299,6 +299,10 @@ export default function InvoiceDetailPage() {
     invoice.status !== 'draft' &&
     invoice.origin !== 'imported'
   const hasDeductions = Number(invoice.amount_deducted) > 0
+  // Once money has moved, the invoice PDF (frozen at issue) no longer says
+  // everything: what was paid and deducted since is on the statement, and
+  // the page offers both instead of letting the first pass for the whole.
+  const offerStatement = canStatement && (Number(invoice.amount_paid) > 0 || hasDeductions)
 
   return (
     <div>
@@ -349,7 +353,39 @@ export default function InvoiceDetailPage() {
                       somebody else issued — the same invention the
                       Document tab refuses to make. Nothing to download
                       until the real file arrives. */}
-                  {(invoice.origin !== 'imported' || hasFiledDocument) && (
+                  {offerStatement ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" variant="outline" data-testid="invoice-download-pdf">
+                          <Download className="h-4 w-4 mr-1.5" />
+                          {t('invoices.action.downloadPdf')}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-[260px] p-1 bg-card border border-border rounded-xl shadow-md"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => downloadMutation.mutate()}
+                          disabled={downloadMutation.isPending}
+                          data-testid="invoice-download-issued"
+                          className="flex-col items-start gap-0.5 text-sm"
+                        >
+                          <span>{t('invoices.statement.asIssued')}</span>
+                          <span className="text-[11px] text-muted-foreground">{t('invoices.statement.asIssuedHint')}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => statementMutation.mutate()}
+                          disabled={statementMutation.isPending}
+                          data-testid="invoice-download-statement"
+                          className="flex-col items-start gap-0.5 text-sm"
+                        >
+                          <span>{t('invoices.statement.title')}</span>
+                          <span className="text-[11px] text-muted-foreground">{t('invoices.statement.hint')}</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (invoice.origin !== 'imported' || hasFiledDocument) && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -391,7 +427,6 @@ export default function InvoiceDetailPage() {
                   weight as "mark as paid" is how someone voids by
                   reflex. */}
               {(canRecur ||
-                canStatement ||
                 invoice.schedule_id ||
                 actions.canWriteOff ||
                 actions.canReopen ||
@@ -412,17 +447,6 @@ export default function InvoiceDetailPage() {
                     align="end"
                     className="w-[220px] p-1 bg-card border border-border rounded-xl shadow-md"
                   >
-                    {canStatement && (
-                      <DropdownMenuItem
-                        onClick={() => statementMutation.mutate()}
-                        disabled={statementMutation.isPending}
-                        data-testid="invoice-download-statement"
-                        className="gap-2 text-sm"
-                      >
-                        <FileText className="h-4 w-4 text-muted-foreground" />
-                        {t('invoices.action.downloadStatement')}
-                      </DropdownMenuItem>
-                    )}
                     {canRecur && (
                       <DropdownMenuItem
                         onClick={() => setRecurringOpen(true)}
@@ -512,6 +536,31 @@ export default function InvoiceDetailPage() {
 
       {tab === 'document' ? (
         <div className="space-y-4">
+          {offerStatement && (
+            <SectionCard>
+              <div
+                className="flex flex-wrap items-center gap-3 px-4 sm:px-5 py-3 text-sm"
+                data-testid="invoice-statement-banner"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="flex-1 min-w-[16rem] text-muted-foreground">
+                  {t('invoices.statement.banner', {
+                    paid: money(invoice.amount_paid),
+                    deducted: money(invoice.amount_deducted),
+                  })}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => statementMutation.mutate()}
+                  disabled={statementMutation.isPending}
+                >
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {t('invoices.action.downloadStatement')}
+                </Button>
+              </div>
+            </SectionCard>
+          )}
           {shareUrl && (
             <SectionCard>
               <div
