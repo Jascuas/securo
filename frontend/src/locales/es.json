@@ -578,13 +578,13 @@
       }
     },
     "products": {
-      "title": "Productos y servicios",
+      "title": "Productos",
       "new": "Nuevo producto",
       "newDescription": "Algo que vendes, con un precio por moneda. Al elegirlo se rellena una línea de la factura; la línea sigue siendo tuya para cambiarla después.",
       "editTitle": "Editar producto",
       "empty": "Aún no hay productos. Añade lo que vendes y cada línea de factura estará a un clic.",
       "emptyArchived": "Nada archivado.",
-      "emptyPicker": "Aún no hay productos. Añádelos en Productos y servicios.",
+      "emptyPicker": "Aún no hay productos. Añádelos en Productos.",
       "noneFound": "Ningún producto coincide.",
       "searchPlaceholder": "Buscar productos",
       "pick": "Elegir del catálogo",

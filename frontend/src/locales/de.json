@@ -578,13 +578,13 @@
       }
     },
     "products": {
-      "title": "Produkte und Dienstleistungen",
+      "title": "Produkte",
       "new": "Neues Produkt",
       "newDescription": "Etwas, das Sie verkaufen, mit einem Preis pro Währung. Die Auswahl füllt eine Rechnungsposition aus; die Position können Sie danach frei ändern.",
       "editTitle": "Produkt bearbeiten",
       "empty": "Noch keine Produkte. Legen Sie an, was Sie verkaufen, und jede Rechnungsposition ist nur einen Klick entfernt.",
       "emptyArchived": "Nichts archiviert.",
-      "emptyPicker": "Noch keine Produkte. Legen Sie sie unter Produkte und Dienstleistungen an.",
+      "emptyPicker": "Noch keine Produkte. Legen Sie sie unter Produkte an.",
       "noneFound": "Kein Produkt passt.",
       "searchPlaceholder": "Produkte suchen",
       "pick": "Aus dem Katalog wählen",

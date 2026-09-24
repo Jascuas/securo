@@ -578,13 +578,13 @@
       }
     },
     "products": {
-      "title": "Produtos e serviços",
+      "title": "Produtos",
       "new": "Novo produto",
       "newDescription": "Algo que você vende, com um preço por moeda. Escolher preenche a linha da cobrança; a linha continua sua para alterar depois.",
       "editTitle": "Editar produto",
       "empty": "Nenhum produto ainda. Cadastre o que você vende, e cada linha de cobrança fica a um clique dele.",
       "emptyArchived": "Nada arquivado.",
-      "emptyPicker": "Nenhum produto ainda. Cadastre em Produtos e serviços.",
+      "emptyPicker": "Nenhum produto ainda. Cadastre em Produtos.",
       "noneFound": "Nenhum produto corresponde.",
       "searchPlaceholder": "Buscar produtos",
       "pick": "Escolher do catálogo",

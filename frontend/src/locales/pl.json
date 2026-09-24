@@ -582,13 +582,13 @@
       }
     },
     "products": {
-      "title": "Produkty i usługi",
+      "title": "Produkty",
       "new": "Nowy produkt",
       "newDescription": "Coś, co sprzedajesz, z ceną dla każdej waluty. Wybranie go wypełnia pozycję faktury; pozycję można potem dowolnie zmienić.",
       "editTitle": "Edytuj produkt",
       "empty": "Nie ma jeszcze produktów. Dodaj to, co sprzedajesz, a każda pozycja faktury będzie o jedno kliknięcie.",
       "emptyArchived": "Nic nie zarchiwizowano.",
-      "emptyPicker": "Nie ma jeszcze produktów. Dodaj je w sekcji Produkty i usługi.",
+      "emptyPicker": "Nie ma jeszcze produktów. Dodaj je w sekcji Produkty.",
       "noneFound": "Żaden produkt nie pasuje.",
       "searchPlaceholder": "Szukaj produktów",
       "pick": "Wybierz z katalogu",

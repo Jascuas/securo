@@ -582,13 +582,13 @@
       }
     },
     "products": {
-      "title": "Produkty a služby",
+      "title": "Produkty",
       "new": "Nový produkt",
       "newDescription": "Niečo, čo predávate, s cenou pre každú menu. Výber vyplní položku faktúry; položku môžete potom ľubovoľne upraviť.",
       "editTitle": "Upraviť produkt",
       "empty": "Zatiaľ žiadne produkty. Pridajte, čo predávate, a každá položka faktúry bude na jedno kliknutie.",
       "emptyArchived": "Nič nie je archivované.",
-      "emptyPicker": "Zatiaľ žiadne produkty. Pridajte ich v sekcii Produkty a služby.",
+      "emptyPicker": "Zatiaľ žiadne produkty. Pridajte ich v sekcii Produkty.",
       "noneFound": "Žiadny produkt nezodpovedá.",
       "searchPlaceholder": "Hľadať produkty",
       "pick": "Vybrať z katalógu",

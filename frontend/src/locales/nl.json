@@ -578,13 +578,13 @@
       }
     },
     "products": {
-      "title": "Producten en diensten",
+      "title": "Producten",
       "new": "Nieuw product",
       "newDescription": "Iets wat je verkoopt, met een prijs per valuta. Kies je het, dan vult het een factuurregel in; de regel blijft daarna van jou om aan te passen.",
       "editTitle": "Product bewerken",
       "empty": "Nog geen producten. Voeg toe wat je verkoopt, en elke factuurregel is één klik verwijderd.",
       "emptyArchived": "Niets gearchiveerd.",
-      "emptyPicker": "Nog geen producten. Voeg ze toe onder Producten en diensten.",
+      "emptyPicker": "Nog geen producten. Voeg ze toe onder Producten.",
       "noneFound": "Geen product komt overeen.",
       "searchPlaceholder": "Producten zoeken",
       "pick": "Kies uit de catalogus",

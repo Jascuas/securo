@@ -578,13 +578,13 @@
       }
     },
     "products": {
-      "title": "Products and services",
+      "title": "Products",
       "new": "New product",
       "newDescription": "Something you sell, with a price per currency. Picking it fills an invoice line; the line is yours to change after.",
       "editTitle": "Edit product",
       "empty": "No products yet. Add what you sell, and every invoice line is one click from it.",
       "emptyArchived": "Nothing archived.",
-      "emptyPicker": "No products yet. Add them under Products and services.",
+      "emptyPicker": "No products yet. Add them under Products.",
       "noneFound": "No product matches.",
       "searchPlaceholder": "Search products",
       "pick": "Pick from the catalog",
