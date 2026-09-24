@@ -60,6 +60,9 @@ def _signal_scores(
     verdict.
     """
     expectation = settlement.expectation
+    # The part that was expected (the next installment) when there was
+    # one, so the queue does not call an exact installment "short".
+    expected = settlement.target if settlement.target is not None else expectation.amount
     return {
         "strategy": decision.strategy,
         # How many promises this one payment is being offered against, so
@@ -67,9 +70,9 @@ def _signal_scores(
         # that looks wrong on its own.
         "of_set": len(decision.settlements),
         "description": round(decision.score, 3),
-        "amount_expected": str(expectation.amount),
+        "amount_expected": str(expected),
         "amount_moved": str(abs(movement.amount)),
-        "amount_exact": settlement.amount == expectation.amount,
+        "amount_exact": settlement.amount == expected,
         "days_apart": (movement.when - expectation.when).days,
         "same_counterparty": bool(
             movement.payee_id and movement.payee_id == expectation.payee_id

@@ -244,6 +244,20 @@ def first_unpaid_due(invoice: Invoice) -> Optional[_date]:
     return None
 
 
+def open_installments(invoice: Invoice) -> list[tuple[_date, Decimal]]:
+    """What is still owed on each installment not yet covered, first to
+    last, as (due date, remainder). The remainders add up to the balance.
+    Empty for an invoice without a schedule, or once it is settled."""
+    covered = settled_total(invoice)
+    out: list[tuple[_date, Decimal]] = []
+    for installment in invoice.installments:
+        share = min(installment.amount, max(covered, ZERO))
+        covered -= share
+        if share < installment.amount:
+            out.append((installment.due_date, installment.amount - share))
+    return out
+
+
 def installment_states(
     invoice: Invoice, today: Optional[_date] = None
 ) -> list[dict[str, Any]]:
