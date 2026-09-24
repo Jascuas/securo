@@ -334,6 +334,38 @@ async def mark_accepted(
     return suggestion
 
 
+async def settled_by_hand(
+    session: AsyncSession,
+    workspace_id: uuid.UUID,
+    transaction_id: uuid.UUID,
+    expectation_id: uuid.UUID,
+    user_id: Optional[uuid.UUID],
+) -> int:
+    """A person linked this money to this promise themselves: the question
+    the queue was asking about the pair has been answered.
+
+    Left pending, the suggestion kept offering a link that already exists,
+    and taking it would only fail. Marked accepted rather than deleted,
+    because that is what happened: somebody agreed, by another door. The
+    link itself was already written to the history by the caller, so no
+    second event is recorded here.
+    """
+    result = await session.execute(
+        select(ReconciliationSuggestion).where(
+            ReconciliationSuggestion.workspace_id == workspace_id,
+            ReconciliationSuggestion.transaction_id == transaction_id,
+            ReconciliationSuggestion.expectation_id == expectation_id,
+            ReconciliationSuggestion.status == "pending",
+        )
+    )
+    rows = list(result.unique().scalars().all())
+    for suggestion in rows:
+        _resolve(suggestion, "accepted", user_id)
+    if rows:
+        await session.flush()
+    return len(rows)
+
+
 def _by_question(
     rows: list[ReconciliationSuggestion],
 ) -> list[list[ReconciliationSuggestion]]:

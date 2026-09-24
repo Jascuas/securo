@@ -530,3 +530,46 @@ async def test_an_upfront_paid_before_the_invoice_is_found(
     assert len(settled.allocations) == 1
     assert settled.allocations[0].transaction_id == paid.id
     assert settled.allocations[0].amount == Decimal("1000.00")
+
+
+@pytest.mark.asyncio
+async def test_linking_by_hand_answers_the_pending_suggestion(
+    client: AsyncClient, biz_headers, session: AsyncSession, account, client_payee, test_user
+):
+    """A short installment payment is offered as a suggestion. When the
+    person links it themselves (the "mark as paid" dialog, recording the
+    difference), the suggestion used to stay pending, still offering a
+    link that already existed."""
+    from app.models.reconciliation import ReconciliationSuggestion
+
+    invoice = await an_invoice(
+        client, biz_headers, payee_id=client_payee.id, installments=THREE_PARTS
+    )
+    short = await a_transaction(
+        session, account, test_user, amount=Decimal("985.00"), payee_id=client_payee.id
+    )
+    applied = await reconciliation_service.match_incoming(session, account.workspace_id, [short])
+    await session.commit()
+    assert applied == []
+
+    short_id = short.id
+
+    def pending():
+        return select(ReconciliationSuggestion.status).where(
+            ReconciliationSuggestion.transaction_id == short_id,
+            ReconciliationSuggestion.expectation_id == uuid.UUID(invoice["id"]),
+        )
+
+    assert list((await session.execute(pending())).scalars().all()) == ["pending"]
+
+    resp = await client.post(
+        f"/api/invoices/{invoice['id']}/allocations", headers=biz_headers,
+        json={"transaction_id": str(short_id)},
+    )
+    assert resp.status_code == 201, resp.text
+
+    session.expire_all()
+    assert list((await session.execute(pending())).scalars().all()) == ["accepted"]
+    queue = await client.get("/api/reconciliation/suggestions", headers=biz_headers)
+    assert queue.status_code == 200, queue.text
+    assert all(str(short_id) not in str(item) for item in queue.json())

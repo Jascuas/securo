@@ -46,6 +46,7 @@ from app.services import (
     invoice_service,
     reconciliation_history_service,
     reconciliation_service,
+    reconciliation_suggestion_service,
 )
 from app.services.invoice_service import InvoiceError
 from app.services.module_service import ModuleId
@@ -465,6 +466,10 @@ async def create_allocation(
         strategy_id=allocation.method,
         user_id=ctx.user_id,
     )
+    if payload.transaction_id is not None:
+        await reconciliation_suggestion_service.settled_by_hand(
+            session, ctx.workspace.id, payload.transaction_id, invoice.id, ctx.user_id
+        )
     await session.commit()
     return _serialize(await _load(session, invoice_id, ctx.workspace.id))
 

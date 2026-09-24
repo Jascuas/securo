@@ -115,3 +115,30 @@ describe('LinkPaymentDialog', () => {
     expect(toast.success).toHaveBeenCalledWith(t('invoices.linked'))
   })
 })
+
+
+describe('LinkPaymentDialog candidates', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('leaves out money already linked here or spent in full elsewhere', async () => {
+    const link = (invoice_id: string, amount: string) => ({
+      invoice_id, amount, number: 1, series: null, external_number: null,
+    })
+    api.transactions.list.mockResolvedValue({
+      items: [
+        { ...payment, id: 'here', description: 'Already on this invoice', invoice_links: [link('inv-1', '1000.00')] },
+        { ...payment, id: 'spent', description: 'Spent on another', invoice_links: [link('inv-9', '1000.00')] },
+        { ...payment, id: 'part', description: 'Half used elsewhere', invoice_links: [link('inv-9', '400.00')] },
+        { ...payment, id: 'free', description: 'Untouched' },
+      ],
+      total: 4,
+    })
+    renderDialog()
+    expect(await screen.findByText('Untouched')).toBeInTheDocument()
+    expect(screen.getByText('Half used elsewhere')).toBeInTheDocument()
+    expect(screen.queryByText('Already on this invoice')).not.toBeInTheDocument()
+    expect(screen.queryByText('Spent on another')).not.toBeInTheDocument()
+  })
+})

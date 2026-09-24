@@ -1036,9 +1036,20 @@ export function LinkPaymentDialog({
   // Same currency only — the server refuses a cross-currency allocation
   // rather than inventing a rate, so offering one here would only be
   // offering an error.
+  //
+  // And only money with something left to give: a payment already linked
+  // to this invoice, or spent in full on others, was offered here too, and
+  // picking it could only fail.
   const candidates = useMemo(
-    () => (data?.items ?? []).filter((tx) => (tx.currency ?? currency) === currency),
-    [data, currency],
+    () =>
+      (data?.items ?? []).filter((tx) => {
+        if ((tx.currency ?? currency) !== currency) return false
+        const links = tx.invoice_links ?? []
+        if (links.some((link) => link.invoice_id === invoiceId)) return false
+        const used = links.reduce((sum, link) => sum + Number(link.amount), 0)
+        return Math.abs(Number(tx.amount)) - used > 0.005
+      }),
+    [data, currency, invoiceId],
   )
 
   const selectedTx = candidates.find((tx) => tx.id === selected)
