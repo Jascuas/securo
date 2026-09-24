@@ -333,10 +333,17 @@ def _totals_table(document: InvoiceDocument, accent) -> Table:
     if document.tax_total and document.tax_total > 0:
         rows.append((document.labels["tax"], _money(document.tax_total, document.currency), False))
     rows.append((document.labels["total"], _money(document.total, document.currency), True))
-    # Paid and balance only once money has moved: on an untouched invoice
-    # they restate the total twice and add nothing.
-    if document.amount_paid and document.amount_paid > 0:
-        rows.append((document.labels["paid"], _money(document.amount_paid, document.currency), False))
+    # Paid and balance only once something has settled: on an untouched
+    # invoice they restate the total twice and add nothing. Deductions get
+    # their own row, or the page would say total 3,000, paid 1,455,
+    # balance 1,500, and the 45 the client withheld would be missing.
+    paid = document.amount_paid or Decimal("0")
+    deducted = document.amount_deducted or Decimal("0")
+    if paid > 0 or deducted > 0:
+        if paid > 0:
+            rows.append((document.labels["paid"], _money(paid, document.currency), False))
+        if deducted > 0:
+            rows.append((document.labels["deducted"], _money(deducted, document.currency), False))
         rows.append((document.labels["balance"], _money(document.balance, document.currency), True))
 
     width = 74 * mm

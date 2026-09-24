@@ -344,6 +344,10 @@ async def test_installments_and_deductions_over_http(client: AsyncClient, biz_he
     assert body["installments"][0]["settled"] == "100.00" and body["installments"][0]["state"] in ("partial", "overdue")
     deduction_id = body["deductions"][0]["id"]
     assert body["deductions"][0]["kind"] == "gateway_fee"
+    # The document the client reads carries it too, so its totals add up.
+    doc = (await client.get(f"/api/invoices/{invoice_id}/document", headers=biz_headers)).json()
+    assert doc["amount_deducted"] == "100.00" and doc["balance"] == "2900.00"
+    assert doc["labels"]["deducted"] == "Deduções"  # the workspace writes in Portuguese
 
     resp = await client.post(f"/api/invoices/{invoice_id}/deductions", headers=biz_headers, json={"kind": "other", "amount": "5000"})
     assert resp.status_code == 400 and resp.json()["detail"]["code"] == "over_allocation"

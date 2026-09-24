@@ -124,6 +124,7 @@ export function InvoiceDocumentView({ document }: { document: InvoiceDocumentPay
   const L = document.labels
   const accent = document.accent_color
   const hasPaid = Number(document.amount_paid) > 0
+  const hasDeducted = Number(document.amount_deducted ?? 0) > 0
 
   const money = (value: string) => formatCurrency(Number(value), document.currency, locale)
   const showDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(dateLocale)
@@ -139,10 +140,12 @@ export function InvoiceDocumentView({ document }: { document: InvoiceDocumentPay
     totals.push({ label: L.tax, value: money(document.tax_total) })
   }
   totals.push({ label: L.total, value: money(document.total), strong: true })
-  // Paid and balance only once money has moved: on an untouched invoice
-  // they restate the total twice and add nothing.
-  if (hasPaid) {
-    totals.push({ label: L.paid, value: money(document.amount_paid) })
+  // Paid and balance only once something has settled: on an untouched
+  // invoice they restate the total twice and add nothing. Deductions get
+  // their own row, or total, paid and balance would not add up.
+  if (hasPaid || hasDeducted) {
+    if (hasPaid) totals.push({ label: L.paid, value: money(document.amount_paid) })
+    if (hasDeducted) totals.push({ label: L.deducted, value: money(document.amount_deducted) })
     totals.push({ label: L.balance, value: money(document.balance), strong: true })
   }
 

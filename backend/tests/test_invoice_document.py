@@ -307,7 +307,7 @@ class TestPdf:
             number="1", status="open", state="open", issue_date=TODAY, due_date=TODAY,
             currency="USD", subtotal=Decimal("0"), discount=Decimal("0"),
             tax_total=Decimal("0"), total=Decimal("10"), amount_paid=Decimal("0"),
-            balance=Decimal("10"), issuer=DocumentParty(name="A"),
+            amount_deducted=Decimal("0"), balance=Decimal("10"), issuer=DocumentParty(name="A"),
             client=DocumentParty(name="B"), lines=[], labels=dict(DEFAULT_LABELS),
             accent_color="#000000", logo_id=None, payment_details=None, notes=None,
             footer_note=None, custom_fields=[], has_line_items=False,
@@ -510,7 +510,13 @@ class TestIssuerProfile:
 # ---------------------------------------------------------------------------
 # Page structure — the band layout and its pagination
 # ---------------------------------------------------------------------------
-def _doc(n_lines: int, footer_note: str = "Alpha ME", n_installments: int = 0):
+def _doc(
+    n_lines: int,
+    footer_note: str = "Alpha ME",
+    n_installments: int = 0,
+    paid: str = "0",
+    deducted: str = "0",
+):
     """A document with `n_lines` items, for exercising page breaks.
 
     Built field by field rather than from a dict: keyword-splatting a
@@ -532,8 +538,9 @@ def _doc(n_lines: int, footer_note: str = "Alpha ME", n_installments: int = 0):
         discount=Decimal("0"),
         tax_total=Decimal("0"),
         total=Decimal("1200"),
-        amount_paid=Decimal("0"),
-        balance=Decimal("1200"),
+        amount_paid=Decimal(paid),
+        amount_deducted=Decimal(deducted),
+        balance=Decimal("1200") - Decimal(paid) - Decimal(deducted),
         issuer=DocumentParty(name="Alpha ME", tax_ids=[]),
         client=DocumentParty(name="Beta LTDA", address=None, tax_ids=[]),
         lines=[
@@ -635,6 +642,23 @@ class TestPageStructure:
         texts = [p.extract_text() for p in _pages(_doc(45))]
         assert "Item 45" in texts[-1]
         assert "1,200.00" in texts[-1]
+
+    def test_a_deduction_is_on_the_page_so_the_totals_add_up(self):
+        """Total 1,200, paid 1,000, balance 155: without its own row the
+        45 the client withheld is nowhere, and the page does not add up."""
+        text = _pages(_doc(3, paid="1000", deducted="45"))[0].extract_text()
+        assert "Deductions" in text and "BRL 45.00" in text
+        assert "BRL 1,000.00" in text and "BRL 155.00" in text
+
+    def test_settled_by_deduction_alone_still_shows_the_balance(self):
+        text = _pages(_doc(3, deducted="200"))[0].extract_text()
+        assert "Deductions" in text and "BRL 200.00" in text
+        assert "Paid" not in text
+        assert "BRL 1,000.00" in text
+
+    def test_an_untouched_invoice_shows_neither(self):
+        text = _pages(_doc(3))[0].extract_text()
+        assert "Deductions" not in text and "Balance due" not in text
 
     def test_a_short_schedule_shares_page_one(self):
         pages = _pages(_doc(3, n_installments=3))

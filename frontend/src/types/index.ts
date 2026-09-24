@@ -1468,6 +1468,8 @@ export interface InvoiceDocumentPayload {
   tax_total: string
   total: string
   amount_paid: string
+  /** Settled without money arriving: tax withheld, a fee kept. */
+  amount_deducted: string
   balance: string
   issuer: InvoiceDocumentParty
   client: InvoiceDocumentParty

@@ -58,6 +58,7 @@ DEFAULT_LABELS: dict[str, str] = {
     "tax": "Tax",
     "total": "Total",
     "paid": "Paid",
+    "deducted": "Deductions",
     "balance": "Balance due",
     "paymentDetails": "Payment details",
     "notes": "Notes",
@@ -90,6 +91,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "tax": "Impostos",
         "total": "Total",
         "paid": "Recebido",
+        "deducted": "Deduções",
         "balance": "Saldo devedor",
         "paymentDetails": "Dados para pagamento",
         "schedule": "Cronograma de pagamento",
@@ -111,6 +113,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "tax": "Impuestos",
         "total": "Total",
         "paid": "Cobrado",
+        "deducted": "Deducciones",
         "balance": "Saldo pendiente",
         "paymentDetails": "Datos de pago",
         "schedule": "Calendario de pagos",
@@ -132,6 +135,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "tax": "TVA",
         "total": "Total",
         "paid": "Réglé",
+        "deducted": "Déductions",
         "balance": "Reste à payer",
         "paymentDetails": "Coordonnées de paiement",
         "schedule": "Échéancier",
@@ -153,6 +157,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "tax": "USt.",
         "total": "Gesamt",
         "paid": "Bezahlt",
+        "deducted": "Abzüge",
         "balance": "Offener Betrag",
         "paymentDetails": "Zahlungsinformationen",
         "schedule": "Zahlungsplan",
@@ -174,6 +179,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "tax": "IVA",
         "total": "Totale",
         "paid": "Incassato",
+        "deducted": "Trattenute",
         "balance": "Saldo dovuto",
         "paymentDetails": "Dati per il pagamento",
         "schedule": "Scadenze di pagamento",
@@ -250,6 +256,9 @@ class InvoiceDocument:
     tax_total: Decimal
     total: Decimal
     amount_paid: Decimal
+    #: Settled without money arriving: tax withheld, a fee kept. Shown
+    #: so that total, paid and balance add up on the page.
+    amount_deducted: Decimal
     balance: Decimal
     issuer: DocumentParty
     client: DocumentParty
@@ -441,6 +450,7 @@ async def build_document(
         tax_total=invoice.tax_total or Decimal("0"),
         total=invoice.total or Decimal("0"),
         amount_paid=invoice_service.allocated_total(invoice),
+        amount_deducted=invoice_service.deducted_total(invoice),
         balance=invoice_service.balance(invoice),
         issuer=issuer,
         client=client,
@@ -515,6 +525,7 @@ def document_payload(document: InvoiceDocument) -> dict[str, Any]:
         "tax_total": str(document.tax_total),
         "total": str(document.total),
         "amount_paid": str(document.amount_paid),
+        "amount_deducted": str(document.amount_deducted),
         "balance": str(document.balance),
         "issuer": {
             "name": document.issuer.name,
