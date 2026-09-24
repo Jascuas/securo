@@ -458,16 +458,24 @@ def render_pdf(document: InvoiceDocument, logo_bytes: Optional[bytes] = None) ->
     pages: list[list] = []
     y = _draw_parties_and_dates(canvas, document, _draw_header(canvas, document, accent, logo_bytes))
 
+    # The totals must share the last page with the last table, so its
+    # final chunk needs room for both.
+    reserve = totals_height + 8 * mm
+
     schedule = _schedule_table(document)
     if schedule is not None:
-        y = _flow(canvas, document, accent, schedule, y, floor, pages) - 8 * mm
+        y = _flow(canvas, document, accent, schedule, y, floor, pages, reserve=reserve if lines is None else 0.0)
+        y -= 8 * mm
 
     if lines is not None:
-        # The totals must share the last page with the table, so the
-        # final chunk needs room for both.
-        y = _flow(canvas, document, accent, lines, y, floor, pages, reserve=totals_height + 8 * mm)
+        y = _flow(canvas, document, accent, lines, y, floor, pages, reserve=reserve)
 
     y -= 8 * mm
+    if y - totals_height < floor:
+        # Whatever the tables did, the totals never sink into the footer.
+        pages.append([])
+        canvas.showPage()
+        y = _draw_continuation_header(canvas, document, accent)
     totals.drawOn(canvas, PAGE_WIDTH - MARGIN - 74 * mm, y - totals_height)
 
     _draw_footer(canvas, footer, closing)
@@ -509,6 +517,11 @@ def _flow(
             return y - needed
 
         parts = remaining.split(CONTENT_WIDTH, available)
+        if len(parts) == 1 and reserve:
+            # The whole of it fits this page, but not with what has to
+            # follow it. Split so the tail and what follows share the
+            # next page, instead of drawing it whole over the reserve.
+            parts = remaining.split(CONTENT_WIDTH, available - reserve)
         if len(parts) < 2:
             # Cannot split into this space. Normally that means the page
             # is too full, and a fresh one solves it.

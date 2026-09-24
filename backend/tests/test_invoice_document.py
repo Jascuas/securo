@@ -578,6 +578,25 @@ def _lowest_text_y(page) -> float:
     return min(ys)
 
 
+def _text_y(page, needle: str) -> float:
+    """The lowest baseline of the text containing `needle` on the page."""
+    ys: list[float] = []
+
+    def visit(text, cm, tm, font_dict, font_size):
+        if needle in text:
+            ys.append(tm[4] * cm[1] + tm[5] * cm[3] + cm[5])
+
+    page.extract_text(visitor_text=visit)
+    assert ys, f"{needle!r} not on the page"
+    return min(ys)
+
+
+def _floor(document) -> float:
+    """Where the body must stop: the footer band plus its breathing room."""
+    footer, closing = invoice_pdf._footer_flowables(document)
+    return invoice_pdf.MARGIN + invoice_pdf._footer_height(footer, closing) + invoice_pdf.FOOTER_GAP
+
+
 class TestPageStructure:
     def test_a_short_invoice_is_one_page(self):
         assert len(_pages(_doc(3))) == 1
@@ -637,6 +656,25 @@ class TestPageStructure:
         for page in pages:
             assert "FAT-7" in page.extract_text()
             assert _lowest_text_y(page) > 0, "text drawn below the bottom edge"
+
+    @pytest.mark.parametrize("n_lines", [39, 40, 61, 62])
+    def test_totals_never_sink_into_the_footer(self, n_lines):
+        """Counts found by sweeping: the last chunk of the lines fit the
+        page on its own but not together with the totals, and the
+        renderer drew it anyway and put the totals over the footer."""
+        document = _doc(n_lines)
+        pages = _pages(document)
+        last = pages[-1]
+        assert f"Item {n_lines}" in last.extract_text()
+        assert _text_y(last, "1,200.00") >= _floor(document)
+
+    @pytest.mark.parametrize("n_installments", [25, 57, 59])
+    def test_a_schedule_with_no_lines_leaves_room_for_the_totals(self, n_installments):
+        document = _doc(0, n_installments=n_installments)
+        pages = _pages(document)
+        assert _text_y(pages[-1], "1,200.00") >= _floor(document)
+        for page in pages:
+            assert _lowest_text_y(page) > 0
 
     def test_page_numbers_appear_only_when_there_is_more_than_one(self):
         """"1 / 1" on a single-page invoice is noise that makes the
