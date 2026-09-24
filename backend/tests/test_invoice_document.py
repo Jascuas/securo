@@ -510,7 +510,7 @@ class TestIssuerProfile:
 # ---------------------------------------------------------------------------
 # Page structure — the band layout and its pagination
 # ---------------------------------------------------------------------------
-def _doc(n_lines: int, footer_note: str = "Alpha ME"):
+def _doc(n_lines: int, footer_note: str = "Alpha ME", n_installments: int = 0):
     """A document with `n_lines` items, for exercising page breaks.
 
     Built field by field rather than from a dict: keyword-splatting a
@@ -518,7 +518,7 @@ def _doc(n_lines: int, footer_note: str = "Alpha ME"):
     one fixture the PDF tests all lean on.
     """
     from app.services.invoice_document import (
-        DEFAULT_LABELS, DocumentLine, DocumentParty, InvoiceDocument,
+        DEFAULT_LABELS, DocumentInstallment, DocumentLine, DocumentParty, InvoiceDocument,
     )
 
     return InvoiceDocument(
@@ -548,6 +548,10 @@ def _doc(n_lines: int, footer_note: str = "Alpha ME"):
         footer_note=footer_note,
         custom_fields=[],
         has_line_items=n_lines > 0,
+        installments=[
+            DocumentInstallment(f"Parcela {i + 1}", date(2026, 9, 20) + timedelta(days=30 * i), Decimal("10"))
+            for i in range(n_installments)
+        ],
     )
 
 
@@ -557,6 +561,21 @@ def _pages(document):
     import pypdf
 
     return pypdf.PdfReader(io.BytesIO(invoice_pdf.render_pdf(document))).pages
+
+
+def _lowest_text_y(page) -> float:
+    """Where the lowest piece of text on the page sits, in points from
+    the bottom edge. Text drawn below zero is in the file and on no
+    page anyone will ever see; pypdf's plain extraction still finds it,
+    which is why the page-break tests cannot rely on text alone."""
+    ys: list[float] = []
+
+    def visit(text, cm, tm, font_dict, font_size):
+        if text.strip():
+            ys.append(tm[4] * cm[1] + tm[5] * cm[3] + cm[5])
+
+    page.extract_text(visitor_text=visit)
+    return min(ys)
 
 
 class TestPageStructure:
@@ -597,6 +616,27 @@ class TestPageStructure:
         texts = [p.extract_text() for p in _pages(_doc(45))]
         assert "Item 45" in texts[-1]
         assert "1,200.00" in texts[-1]
+
+    def test_a_short_schedule_shares_page_one(self):
+        pages = _pages(_doc(3, n_installments=3))
+        assert len(pages) == 1
+        assert "Parcela 3" in pages[0].extract_text()
+
+    def test_a_long_schedule_paginates_and_loses_no_installment(self):
+        """The schedule used to be drawn as part of the header, with no
+        page break: enough installments and the rows ran under the footer
+        and off the page, taking the line items with them."""
+        n = 80
+        pages = _pages(_doc(3, n_installments=n))
+        assert len(pages) > 1
+        text = "\n".join(p.extract_text() for p in pages)
+        for i in range(n):
+            assert f"Parcela {i + 1}" in text, f"installment {i + 1} vanished"
+        assert "Item 3" in text
+        assert "1,200.00" in pages[-1].extract_text()
+        for page in pages:
+            assert "FAT-7" in page.extract_text()
+            assert _lowest_text_y(page) > 0, "text drawn below the bottom edge"
 
     def test_page_numbers_appear_only_when_there_is_more_than_one(self):
         """"1 / 1" on a single-page invoice is noise that makes the

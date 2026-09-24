@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -941,7 +941,7 @@ function RecordDeductionDialog({
   )
 }
 
-function LinkPaymentDialog({
+export function LinkPaymentDialog({
   open,
   onOpenChange,
   invoiceId,
@@ -996,9 +996,23 @@ function LinkPaymentDialog({
   const applied = amount ? Number(amount) : Math.min(Number(balance), Math.abs(Number(selectedTx?.amount ?? 0)))
   const difference = selectedTx ? Math.round((target - applied) * 100) / 100 : 0
 
+  // Linking and deducting are two requests. Once the first has landed
+  // the invoice is already different, so if the second fails the dialog
+  // still closes and refreshes: left open, "try again" would link the
+  // same payment a second time.
+  const linked = useRef(false)
+  const close = () => {
+    onOpenChange(false)
+    setSelected('')
+    setAmount('')
+    setDifferenceKind('none')
+    onLinked()
+  }
   const mutation = useMutation({
     mutationFn: async () => {
+      linked.current = false
       const after = await invoicesApi.allocate(invoiceId, selected, amount || undefined)
+      linked.current = true
       if (differenceKind !== 'none' && difference > 0) {
         await invoicesApi.deduct(invoiceId, {
           kind: differenceKind,
@@ -1010,15 +1024,15 @@ function LinkPaymentDialog({
     },
     onSuccess: () => {
       toast.success(t('invoices.linked'))
-      onOpenChange(false)
-      setSelected('')
-      setAmount('')
-      setDifferenceKind('none')
-      onLinked()
+      close()
     },
     onError: (error) => {
       const key = invoiceErrorKey(error)
       toast.error(key ? t(key, t('invoices.errors.generic')) : t('invoices.errors.generic'))
+      if (linked.current) {
+        toast.success(t('invoices.linked'))
+        close()
+      }
     },
   })
 

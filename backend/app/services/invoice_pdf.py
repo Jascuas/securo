@@ -237,31 +237,40 @@ def _draw_parties_and_dates(canvas, document: InvoiceDocument, y: float) -> floa
     _, height = table.wrap(CONTENT_WIDTH, PAGE_HEIGHT)
     y -= height
     table.drawOn(canvas, MARGIN, y)
-    y -= 11 * mm
+    return y - 11 * mm
 
-    # The schedule, when the money is expected on more than one date.
-    # Under the dates and above the lines: it is about when, not what.
-    if document.installments:
-        rows = [[_label(document.labels["schedule"]), _label(document.labels["dueDate"]), _label(document.labels["amount"])]]
-        for index, installment in enumerate(document.installments, start=1):
-            rows.append([
-                _para(installment.label or f"{index}/{len(document.installments)}"),
-                _para(installment.due_date.isoformat()),
-                _para(_money(installment.amount, document.currency), align=TA_RIGHT),
-            ])
-        schedule = Table(rows, colWidths=[CONTENT_WIDTH * 0.5, CONTENT_WIDTH * 0.25, CONTENT_WIDTH * 0.25])
-        schedule.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
-            ("TOPPADDING", (0, 0), (-1, -1), 1),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        _, height = schedule.wrap(CONTENT_WIDTH, PAGE_HEIGHT)
-        y -= height
-        schedule.drawOn(canvas, MARGIN, y)
-        y -= 8 * mm
-    return y
+
+def _schedule_table(document: InvoiceDocument) -> Optional[Table]:
+    """The schedule, when the money is expected on more than one date.
+
+    Drawn under the dates and above the lines: it is about when, not
+    what. A table rather than part of the header so that a long one
+    breaks across pages the way the lines do, instead of running off
+    the bottom of page one.
+    """
+    if not document.installments:
+        return None
+    rows = [[_label(document.labels["schedule"]), _label(document.labels["dueDate"]), _label(document.labels["amount"])]]
+    for index, installment in enumerate(document.installments, start=1):
+        rows.append([
+            _para(installment.label or f"{index}/{len(document.installments)}"),
+            _para(installment.due_date.isoformat()),
+            _para(_money(installment.amount, document.currency), align=TA_RIGHT),
+        ])
+    table = Table(
+        rows,
+        colWidths=[CONTENT_WIDTH * 0.5, CONTENT_WIDTH * 0.25, CONTENT_WIDTH * 0.25],
+        repeatRows=1,
+        splitInRow=1,
+    )
+    table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return table
 
 
 def _lines_table(document: InvoiceDocument) -> Optional[Table]:
@@ -449,53 +458,14 @@ def render_pdf(document: InvoiceDocument, logo_bytes: Optional[bytes] = None) ->
     pages: list[list] = []
     y = _draw_parties_and_dates(canvas, document, _draw_header(canvas, document, accent, logo_bytes))
 
+    schedule = _schedule_table(document)
+    if schedule is not None:
+        y = _flow(canvas, document, accent, schedule, y, floor, pages) - 8 * mm
+
     if lines is not None:
-        remaining: Optional[Table] = lines
-        # Whether the next attempt is happening on an otherwise empty
-        # page, which is what tells a "too full" failure apart from a
-        # "will never fit" one.
-        on_fresh_page = False
-        while remaining is not None:
-            available = y - floor
-            # The totals must share the last page with the table, so the
-            # final chunk needs room for both.
-            needed = remaining.wrap(CONTENT_WIDTH, PAGE_HEIGHT)[1]
-            if needed + totals_height + 8 * mm <= available:
-                remaining.drawOn(canvas, MARGIN, y - needed)
-                y -= needed
-                remaining = None
-                break
-
-            parts = remaining.split(CONTENT_WIDTH, available)
-            if len(parts) < 2:
-                # Cannot split into this space. Normally that means the
-                # page is too full, and a fresh one solves it.
-                #
-                # If we are *already* at the top of a fresh page, it does
-                # not: the content will not fit anywhere, and asking for
-                # another page would ask forever. Draw it and move on —
-                # an overrun on one invoice beats a request that never
-                # returns and holds a worker until it is killed.
-                if on_fresh_page:
-                    remaining.drawOn(canvas, MARGIN, y - needed)
-                    remaining = None
-                    break
-                pages.append([])
-                canvas.showPage()
-                y = _draw_continuation_header(canvas, document, accent)
-                on_fresh_page = True
-                continue
-
-            head, tail = parts[0], parts[1]
-            head_height = head.wrap(CONTENT_WIDTH, PAGE_HEIGHT)[1]
-            head.drawOn(canvas, MARGIN, y - head_height)
-            pages.append([])
-            canvas.showPage()
-            y = _draw_continuation_header(canvas, document, accent)
-            remaining = tail
-            # The page the tail lands on carries only the continuation
-            # header, so it counts as fresh for the same reason.
-            on_fresh_page = True
+        # The totals must share the last page with the table, so the
+        # final chunk needs room for both.
+        y = _flow(canvas, document, accent, lines, y, floor, pages, reserve=totals_height + 8 * mm)
 
     y -= 8 * mm
     totals.drawOn(canvas, PAGE_WIDTH - MARGIN - 74 * mm, y - totals_height)
@@ -507,6 +477,67 @@ def render_pdf(document: InvoiceDocument, logo_bytes: Optional[bytes] = None) ->
 
     canvas.save()
     return buffer.getvalue()
+
+
+def _flow(
+    canvas,
+    document: InvoiceDocument,
+    accent,
+    table: Table,
+    y: float,
+    floor: float,
+    pages: list[list],
+    reserve: float = 0.0,
+) -> float:
+    """Draw `table` downwards from `y`, breaking onto continuation pages
+    as needed, and return the y just under it.
+
+    `reserve` is room the last chunk must leave under itself on its page,
+    for whatever has to share that page with it. `pages` grows by one per
+    page break, for the page count.
+    """
+    remaining: Optional[Table] = table
+    # Whether the next attempt is happening on an otherwise empty page,
+    # which is what tells a "too full" failure apart from a "will never
+    # fit" one.
+    on_fresh_page = False
+    while remaining is not None:
+        available = y - floor
+        needed = remaining.wrap(CONTENT_WIDTH, PAGE_HEIGHT)[1]
+        if needed + reserve <= available:
+            remaining.drawOn(canvas, MARGIN, y - needed)
+            return y - needed
+
+        parts = remaining.split(CONTENT_WIDTH, available)
+        if len(parts) < 2:
+            # Cannot split into this space. Normally that means the page
+            # is too full, and a fresh one solves it.
+            #
+            # If we are *already* at the top of a fresh page, it does
+            # not: the content will not fit anywhere, and asking for
+            # another page would ask forever. Draw it and move on; an
+            # overrun on one invoice beats a request that never returns
+            # and holds a worker until it is killed.
+            if on_fresh_page:
+                remaining.drawOn(canvas, MARGIN, y - needed)
+                return y - needed
+            pages.append([])
+            canvas.showPage()
+            y = _draw_continuation_header(canvas, document, accent)
+            on_fresh_page = True
+            continue
+
+        head, tail = parts[0], parts[1]
+        head_height = head.wrap(CONTENT_WIDTH, PAGE_HEIGHT)[1]
+        head.drawOn(canvas, MARGIN, y - head_height)
+        pages.append([])
+        canvas.showPage()
+        y = _draw_continuation_header(canvas, document, accent)
+        remaining = tail
+        # The page the tail lands on carries only the continuation
+        # header, so it counts as fresh for the same reason.
+        on_fresh_page = True
+    return y
 
 
 def _draw_continuation_header(canvas, document: InvoiceDocument, accent) -> float:
