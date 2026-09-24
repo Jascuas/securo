@@ -230,6 +230,25 @@ export function InvoiceDocumentView({ document }: { document: InvoiceDocumentPay
           ))}
         </div>
 
+        {document.installments.length > 0 && (
+          <div className="mt-6" data-testid="document-installments">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: MUTED }}>
+              {L.schedule}
+            </div>
+            <table className="mt-1.5 w-full text-sm">
+              <tbody>
+                {document.installments.map((row, index) => (
+                  <tr key={index} style={{ borderBottom: `1px solid ${RULE}` }}>
+                    <td className="py-1.5 pr-4">{row.label ?? `${index + 1}/${document.installments.length}`}</td>
+                    <td className="py-1.5 pr-4 tabular-nums" style={{ color: MUTED }}>{showDate(row.due_date)}</td>
+                    <td className="py-1.5 text-right tabular-nums">{money(row.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {document.lines.length > 0 ? (
           <table className="mt-9 w-full">
             <thead>

@@ -61,6 +61,7 @@ DEFAULT_LABELS: dict[str, str] = {
     "balance": "Balance due",
     "paymentDetails": "Payment details",
     "notes": "Notes",
+    "schedule": "Payment schedule",
 }
 
 #: Shipped label packs, by language. Deliberately few: this is the set
@@ -91,6 +92,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Recebido",
         "balance": "Saldo devedor",
         "paymentDetails": "Dados para pagamento",
+        "schedule": "Cronograma de pagamento",
         "notes": "Observações",
     },
     "es": {
@@ -111,6 +113,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Cobrado",
         "balance": "Saldo pendiente",
         "paymentDetails": "Datos de pago",
+        "schedule": "Calendario de pagos",
         "notes": "Notas",
     },
     "fr": {
@@ -131,6 +134,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Réglé",
         "balance": "Reste à payer",
         "paymentDetails": "Coordonnées de paiement",
+        "schedule": "Échéancier",
         "notes": "Notes",
     },
     "de": {
@@ -151,6 +155,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Bezahlt",
         "balance": "Offener Betrag",
         "paymentDetails": "Zahlungsinformationen",
+        "schedule": "Zahlungsplan",
         "notes": "Hinweise",
     },
     "it": {
@@ -171,6 +176,7 @@ LABEL_PACKS: dict[str, dict[str, str]] = {
         "paid": "Incassato",
         "balance": "Saldo dovuto",
         "paymentDetails": "Dati per il pagamento",
+        "schedule": "Scadenze di pagamento",
         "notes": "Note",
     },
 }
@@ -222,6 +228,13 @@ class DocumentLine:
     unit: Optional[str] = None
 
 
+@dataclass(frozen=True)
+class DocumentInstallment:
+    label: Optional[str]
+    due_date: _date
+    amount: Decimal
+
+
 @dataclass
 class InvoiceDocument:
     """Everything a renderer needs, and nothing it has to look up."""
@@ -258,6 +271,10 @@ class InvoiceDocument:
     #: difference between showing a document and claiming to have written
     #: one.
     direction: str = "receivable"
+    #: The dates the money is expected on, when there is more than one.
+    #: Rendered as a small table under the header so the client sees
+    #: the same split they agreed to.
+    installments: list[DocumentInstallment] = field(default_factory=list)
 
 
 def _label_map(
@@ -414,6 +431,10 @@ async def build_document(
         state=invoice_service.derive_state(invoice),
         issue_date=invoice.issue_date,
         due_date=invoice.due_date,
+        installments=[
+            DocumentInstallment(label=i.label, due_date=i.due_date, amount=i.amount)
+            for i in invoice.installments
+        ],
         currency=invoice.currency,
         subtotal=invoice.subtotal or Decimal("0"),
         discount=invoice.discount or Decimal("0"),
@@ -527,4 +548,8 @@ def document_payload(document: InvoiceDocument) -> dict[str, Any]:
         "custom_fields": [{"label": k, "value": v} for k, v in document.custom_fields],
         "has_line_items": document.has_line_items,
         "direction": document.direction,
+        "installments": [
+            {"label": i.label, "due_date": i.due_date.isoformat(), "amount": str(i.amount)}
+            for i in document.installments
+        ],
     }

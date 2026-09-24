@@ -21,6 +21,8 @@ from app.core.module_gate import require_module, require_module_write
 from app.core.workspace_context import WorkspaceContext
 from app.schemas.invoice import (
     AllocationCreate,
+    DeductionCreate,
+    InstallmentRead,
     InvoiceCreate,
     InvoiceDirection,
     InvoiceFacets,
@@ -70,8 +72,13 @@ def _serialize(invoice, today: Optional[_date] = None) -> InvoiceRead:
     payload = InvoiceRead.model_validate(invoice, from_attributes=True)
     payload.state = invoice_service.derive_state(invoice, today)
     payload.amount_paid = invoice_service.allocated_total(invoice)
+    payload.amount_deducted = invoice_service.deducted_total(invoice)
     payload.balance = invoice_service.balance(invoice)
     payload.days_overdue = invoice_service.days_overdue(invoice, today)
+    payload.next_due_date = invoice_service.first_unpaid_due(invoice)
+    payload.installments = [
+        InstallmentRead(**row) for row in invoice_service.installment_states(invoice, today)
+    ]
     return payload
 
 
@@ -253,6 +260,8 @@ async def create_invoice(
     data = payload.model_dump(exclude_unset=True)
     if data.get("lines") is not None:
         data["lines"] = [dict(line) for line in data["lines"]]
+    if data.get("installments") is not None:
+        data["installments"] = [dict(row) for row in data["installments"]]
     try:
         invoice = await invoice_service.create_invoice(
             session, ctx.workspace.id, ctx.user_id, data
@@ -292,6 +301,8 @@ async def update_invoice(
     data = payload.model_dump(exclude_unset=True)
     if data.get("lines") is not None:
         data["lines"] = [dict(line) for line in data["lines"]]
+    if data.get("installments") is not None:
+        data["installments"] = [dict(row) for row in data["installments"]]
     try:
         invoice = await invoice_service.update_invoice(session, invoice, data)
     except InvoiceError as exc:
@@ -454,6 +465,47 @@ async def create_allocation(
         strategy_id=allocation.method,
         user_id=ctx.user_id,
     )
+    await session.commit()
+    return _serialize(await _load(session, invoice_id, ctx.workspace.id))
+
+
+@router.post("/{invoice_id}/deductions", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)
+async def create_deduction(
+    invoice_id: uuid.UUID,
+    payload: DeductionCreate,
+    ctx: WorkspaceContext = Depends(write_ctx),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Close part of the debt without money: tax withheld, a fee kept."""
+    invoice = await _load(session, invoice_id, ctx.workspace.id)
+    try:
+        await invoice_service.deduct(
+            session,
+            invoice,
+            payload.kind,
+            payload.amount,
+            tax_kind=payload.tax_kind,
+            note=payload.note,
+            transaction_id=payload.transaction_id,
+        )
+    except InvoiceError as exc:
+        raise _http(exc)
+    await session.commit()
+    return _serialize(await _load(session, invoice_id, ctx.workspace.id))
+
+
+@router.delete("/{invoice_id}/deductions/{deduction_id}", response_model=InvoiceRead)
+async def remove_deduction(
+    invoice_id: uuid.UUID,
+    deduction_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(write_ctx),
+    session: AsyncSession = Depends(get_async_session),
+):
+    invoice = await _load(session, invoice_id, ctx.workspace.id)
+    try:
+        await invoice_service.undeduct(session, invoice, deduction_id)
+    except InvoiceError as exc:
+        raise _http(exc)
     await session.commit()
     return _serialize(await _load(session, invoice_id, ctx.workspace.id))
 

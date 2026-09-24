@@ -49,7 +49,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.invoice import Invoice, InvoiceAllocation, InvoiceSettings
+from app.models.invoice import Invoice, InvoiceAllocation, InvoiceDeduction, InvoiceSettings
 from app.models.invoice_schedule import (
     MAX_CONSECUTIVE_FAILURES,
     PERIODS_PER_YEAR,
@@ -444,6 +444,14 @@ async def figures_for(
         .group_by(InvoiceAllocation.invoice_id)
         .subquery()
     )
+    deducted = (
+        select(
+            InvoiceDeduction.invoice_id.label("invoice_id"),
+            func.coalesce(func.sum(InvoiceDeduction.amount), 0).label("deducted"),
+        )
+        .group_by(InvoiceDeduction.invoice_id)
+        .subquery()
+    )
     rows = (
         await session.execute(
             select(
@@ -452,8 +460,10 @@ async def figures_for(
                 Invoice.due_date,
                 Invoice.total,
                 func.coalesce(allocated.c.paid, 0).label("paid"),
+                func.coalesce(deducted.c.deducted, 0).label("deducted"),
             )
             .outerjoin(allocated, allocated.c.invoice_id == Invoice.id)
+            .outerjoin(deducted, deducted.c.invoice_id == Invoice.id)
             .where(
                 Invoice.workspace_id == workspace_id,
                 Invoice.schedule_id.in_(schedule_ids),
@@ -472,9 +482,10 @@ async def figures_for(
             continue
         total = Decimal(str(row.total))
         paid = Decimal(str(row.paid))
+        settled = paid + Decimal(str(row.deducted))
         acc["invoiced"] += total
         acc["paid"] += min(paid, total)
-        if row.due_date < today and paid < total:
+        if row.due_date < today and settled < total:
             acc["past_due"] += 1
 
     return {

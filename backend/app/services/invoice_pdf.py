@@ -237,7 +237,31 @@ def _draw_parties_and_dates(canvas, document: InvoiceDocument, y: float) -> floa
     _, height = table.wrap(CONTENT_WIDTH, PAGE_HEIGHT)
     y -= height
     table.drawOn(canvas, MARGIN, y)
-    return y - 11 * mm
+    y -= 11 * mm
+
+    # The schedule, when the money is expected on more than one date.
+    # Under the dates and above the lines: it is about when, not what.
+    if document.installments:
+        rows = [[_label(document.labels["schedule"]), _label(document.labels["dueDate"]), _label(document.labels["amount"])]]
+        for index, installment in enumerate(document.installments, start=1):
+            rows.append([
+                _para(installment.label or f"{index}/{len(document.installments)}"),
+                _para(installment.due_date.isoformat()),
+                _para(_money(installment.amount, document.currency), align=TA_RIGHT),
+            ])
+        schedule = Table(rows, colWidths=[CONTENT_WIDTH * 0.5, CONTENT_WIDTH * 0.25, CONTENT_WIDTH * 0.25])
+        schedule.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        _, height = schedule.wrap(CONTENT_WIDTH, PAGE_HEIGHT)
+        y -= height
+        schedule.drawOn(canvas, MARGIN, y)
+        y -= 8 * mm
+    return y
 
 
 def _lines_table(document: InvoiceDocument) -> Optional[Table]:
