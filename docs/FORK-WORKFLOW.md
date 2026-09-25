@@ -40,8 +40,18 @@ remove the superseded fork-specific implementation during a reviewed update.
 
 The audited `CI` workflow checks pushes and PRs targeting `main` or `codex/tensor`
 and supports manual dispatch. Its GitHub token has `contents: read`; it does not
-publish images or deploy. The upstream coverage-badge step is repository-guarded
-and cannot run in this fork.
+publish images or deploy. Fork CI omits upstream coverage-badge extraction and
+publication; no badge credential is needed. Repository Actions uses a selected
+allowlist matching the audited CI action references:
+
+- `actions/checkout@v7`
+- `actions/setup-python@v7`
+- `actions/upload-artifact@v7`
+- `actions/setup-node@v7`
+- `azure/setup-helm@v5`
+
+Review any action-version change and update that allowlist explicitly before
+running the changed workflow.
 
 Initially enable only `ci.yml`. Leave `release.yml`, `prepare-release.yml`,
 `downloads-badge.yml`, `pr-labels.yml` and `label-guard.yml` disabled in the fork.
