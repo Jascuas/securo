@@ -22,6 +22,7 @@ permissions:
 
 jobs:
   prepare:
+    if: github.repository == 'securo-finance/securo'
     name: Bump versions and open PR
     runs-on: ubuntu-latest
     steps:

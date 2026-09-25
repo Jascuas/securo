@@ -2,9 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, codex/tensor]
   pull_request:
-    branches: [main]
+    branches: [main, codex/tensor]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   backend-tests:
@@ -26,7 +31,7 @@ jobs:
           set -euo pipefail
 
           # Keep the required Backend Tests check fast for PRs that only touch
-          # frontend/docs files. Pushes to main still run the full backend suite.
+          # frontend/docs files. Pushes and manual runs still run the full backend suite.
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "run_backend=true" >> "$GITHUB_OUTPUT"
             exit 0

@@ -7,6 +7,7 @@ on:
 
 jobs:
   update-badge:
+    if: github.repository == 'securo-finance/securo'
     name: Update Downloads Badge
     runs-on: ubuntu-latest
     steps:
