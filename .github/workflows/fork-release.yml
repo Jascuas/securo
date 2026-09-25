@@ -1,0 +1,145 @@
+name: Publish Fork Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full lowercase SHA on codex/tensor with complete successful CI
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-release-${{ inputs.source_sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-source:
+    if: github.repository == 'Jascuas/securo' && github.ref == 'refs/heads/codex/tensor'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ci_run_id: ${{ steps.ci.outputs.ci_run_id }}
+    steps:
+      - name: Check out trusted release controls
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify integration ancestry
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git cat-file -e "$SOURCE_SHA^{commit}"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/codex/tensor
+      - name: Test release admission
+        run: python3 -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
+      - name: Require complete CI for exact source
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: python3 .github/scripts/release_gate.py
+
+  publish:
+    needs: verify-source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE_TAG: sha-${{ inputs.source_sha }}-run-${{ github.run_id }}-${{ github.run_attempt }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      PLATFORM: linux/amd64
+      DOCKER_BUILD_RECORD_UPLOAD: false
+    steps:
+      - name: Check out verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and publish backend
+        id: backend
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/jascuas/securo-backend:${{ env.IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Jascuas/securo
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+      - name: Build and publish frontend
+        id: frontend
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/jascuas/securo-frontend:${{ env.IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Jascuas/securo
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+          build-args: |
+            VITE_APP_VERSION=fork-${{ inputs.source_sha }}
+      - name: Record immutable release manifest
+        env:
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+          CI_RUN_ID: ${{ needs.verify-source.outputs.ci_run_id }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          images = {}
+          for component in ("backend", "frontend"):
+              digest = os.environ[f"{component.upper()}_DIGEST"]
+              if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+                  raise ValueError(f"Missing or invalid {component} digest")
+              images[component] = f"ghcr.io/jascuas/securo-{component}@{digest}"
+          base = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}"
+          manifest = {
+              "schema_version": 1,
+              "source_repository": base,
+              "source_sha": os.environ["SOURCE_SHA"],
+              "platform": os.environ["PLATFORM"],
+              "image_tag": os.environ["IMAGE_TAG"],
+              "images": images,
+              "ci_run_url": f"{base}/actions/runs/{os.environ['CI_RUN_ID']}",
+              "build_run_url": f"{base}/actions/runs/{os.environ['GITHUB_RUN_ID']}",
+              "build_run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+          }
+          Path("release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("## Published candidate images\n\n```json\n")
+              summary.write(json.dumps(manifest, indent=2) + "\n```\n")
+              summary.write("\nPublication does not deploy this candidate.\n")
+          PY
+      - name: Upload release manifest
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-manifest-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
