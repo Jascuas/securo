@@ -12,6 +12,14 @@ permissions:
   contents: read
 
 jobs:
+  release-policy:
+    name: Release Policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test release admission
+        run: python3 -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
+
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
