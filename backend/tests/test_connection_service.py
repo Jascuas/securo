@@ -22,6 +22,7 @@ from app.providers.base import (
     ConnectionData,
     ConnectTokenData,
     HoldingData,
+    ProviderDataUnavailable,
     ProviderUserActionRequired,
     TransactionData,
 )
@@ -1810,6 +1811,67 @@ async def test_sync_connection_error_raises(session: AsyncSession, test_user, te
     with patch("app.services.connection_service.get_provider", return_value=mock_provider):
         with pytest.raises(RuntimeError, match="API down"):
             await sync_connection(session, conn.id, test_workspace.id, test_user.id)
+
+
+@pytest.mark.asyncio
+async def test_sync_connection_provider_data_failure_keeps_last_success(
+    session: AsyncSession, test_user, test_workspace,
+):
+    conn = await _make_connection(session, test_user.id, "Synthetic Bank")
+    previous_sync = conn.last_sync_at
+    mock_provider = AsyncMock()
+    mock_provider.refresh_credentials = AsyncMock(return_value={"token": "refreshed"})
+    mock_provider.get_accounts = AsyncMock(
+        side_effect=ProviderDataUnavailable("Synthetic account details unavailable")
+    )
+
+    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+        with pytest.raises(ProviderDataUnavailable):
+            await sync_connection(session, conn.id, test_workspace.id, test_user.id)
+
+    await session.refresh(conn)
+    assert conn.status == "sync_error"
+    assert conn.last_sync_at == previous_sync
+    mock_provider.get_transactions.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_sync_connection_transaction_failure_rolls_back_account_update(
+    session: AsyncSession, test_user, test_workspace,
+):
+    conn = await _make_connection(
+        session, test_user.id, "Synthetic Bank", settings={"sync_assets": False}
+    )
+    mock_provider = AsyncMock()
+    mock_provider.refresh_credentials = AsyncMock(return_value={"token": "refreshed"})
+    mock_provider.get_accounts = AsyncMock(return_value=[
+        AccountData(
+            external_id="synthetic-account", name="Checking", type="checking",
+            balance=Decimal("100"), currency="EUR",
+        ),
+    ])
+    mock_provider.get_transactions = AsyncMock(return_value=[])
+
+    with patch("app.services.connection_service.get_provider", return_value=mock_provider):
+        await sync_connection(session, conn.id, test_workspace.id, test_user.id)
+        account = await session.scalar(
+            select(Account).where(Account.external_id == "synthetic-account")
+        )
+        assert account is not None
+        previous_sync = conn.last_sync_at
+        mock_provider.get_accounts.return_value[0].balance = Decimal("900")
+        mock_provider.get_transactions.side_effect = ProviderDataUnavailable(
+            "Synthetic transaction pages unavailable"
+        )
+
+        with pytest.raises(ProviderDataUnavailable):
+            await sync_connection(session, conn.id, test_workspace.id, test_user.id)
+
+    await session.refresh(account)
+    await session.refresh(conn)
+    assert account.balance == Decimal("100")
+    assert conn.last_sync_at == previous_sync
+    assert conn.status == "sync_error"
 
 
 @pytest.mark.asyncio

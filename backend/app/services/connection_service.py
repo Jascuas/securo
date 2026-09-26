@@ -29,6 +29,7 @@ from app.providers import get_provider
 from app.providers.base import (
     AccountData,
     HoldingData,
+    ProviderDataUnavailable,
     ProviderNotConfiguredError,
     ProviderRateLimited,
     ProviderUserActionRequired,
@@ -2450,6 +2451,15 @@ async def sync_connection(
         # escape as a 500, which is exactly what this handler exists to avoid.
         refreshed = await session.get(BankConnection, connection_id)
         return refreshed or connection, 0
+    except ProviderDataUnavailable:
+        # Keep the previous successful timestamp and all existing account data.
+        # This failure does not imply expired consent or a need to reconnect.
+        await session.rollback()
+        async with session.begin():
+            conn = await session.get(BankConnection, connection_id)
+            if conn:
+                conn.status = "sync_error"
+        raise
     except Exception:
         # Mark connection as errored so UI shows reconnect banner
         await session.rollback()

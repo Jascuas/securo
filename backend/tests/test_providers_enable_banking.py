@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from jose import jwt
 
 from app.providers.base import (
+    ProviderDataUnavailable,
     ProviderUserActionRequired,
     SessionExpiredError,
     mask_last4,
@@ -381,8 +382,8 @@ async def test_get_transactions_parses_nested_and_flat_shapes(eb_keys):
 
 
 @pytest.mark.asyncio
-async def test_get_transactions_stops_on_repeated_continuation_key(eb_keys, caplog):
-    """A provider cursor loop must not duplicate a page up to the safety cap."""
+async def test_get_transactions_rejects_repeated_continuation_key(eb_keys):
+    """A cursor loop cannot return a partial transaction history as success."""
     provider = EnableBankingProvider()
     requests: list[httpx.Request] = []
     page = {
@@ -406,16 +407,52 @@ async def test_get_transactions_stops_on_repeated_continuation_key(eb_keys, capl
         "session_id": "sess-x",
         "valid_until": "2099-01-01T00:00:00Z",
     }
-    with _patch_client(provider, handler), caplog.at_level("WARNING"):
-        transactions = await provider.get_transactions(
-            credentials, "acc-1", date(2026, 5, 1)
-        )
+    with _patch_client(provider, handler):
+        with pytest.raises(ProviderDataUnavailable, match="pagination loop"):
+            await provider.get_transactions(credentials, "acc-1", date(2026, 5, 1))
 
     assert len(requests) == 2
     assert requests[0].url.params.get("continuation_key") is None
     assert requests[1].url.params["continuation_key"] == "cursor-a"
-    assert [transaction.external_id for transaction in transactions] == ["looped-tx-1"]
-    assert "pagination loop detected" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failed_uid", ["first", "second"])
+async def test_get_accounts_rejects_missing_details_without_partial_result(
+    eb_keys, failed_uid,
+):
+    provider = EnableBankingProvider()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/sessions/sess-x":
+            return httpx.Response(200, json={"accounts": ["first", "second"]})
+        if request.url.path == f"/accounts/{failed_uid}/details":
+            return httpx.Response(400, json={"error": "ASPSP_ERROR"})
+        if request.url.path.endswith("/details"):
+            uid = request.url.path.split("/")[2]
+            return httpx.Response(200, json={"uid": uid, "display_name": "Synthetic"})
+        return httpx.Response(200, json={"balances": []})
+
+    with _patch_client(provider, handler):
+        with pytest.raises(ProviderDataUnavailable, match="details unavailable") as exc:
+            await provider.get_accounts({"session_id": "sess-x"})
+    assert failed_uid not in str(exc.value)
+
+
+@pytest.mark.asyncio
+async def test_get_accounts_rejects_balance_failure(eb_keys):
+    provider = EnableBankingProvider()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/sessions/sess-x":
+            return httpx.Response(200, json={"accounts": ["synthetic"]})
+        if request.url.path.endswith("/details"):
+            return httpx.Response(200, json={"uid": "synthetic", "display_name": "Synthetic"})
+        return httpx.Response(400, json={"error": "ASPSP_ERROR"})
+
+    with _patch_client(provider, handler):
+        with pytest.raises(ProviderDataUnavailable, match="balances unavailable"):
+            await provider.get_accounts({"session_id": "sess-x"})
 
 
 @pytest.mark.asyncio
