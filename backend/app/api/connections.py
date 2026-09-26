@@ -11,6 +11,7 @@ from app.core.workspace_context import (
 )
 from app.providers import all_known_providers
 from app.providers.base import (
+    ProviderDataUnavailable,
     ProviderNotConfiguredError,
     ProviderUserActionRequired,
     SessionExpiredError,
@@ -193,6 +194,8 @@ async def sync_connection(
     except SessionExpiredError as e:
         raise HTTPException(status_code=status.HTTP_410_GONE, detail=str(e))
     except ProviderNotConfiguredError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+    except ProviderDataUnavailable as e:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
     except Exception as e:
         raise HTTPException(
