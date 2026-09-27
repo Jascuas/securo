@@ -223,6 +223,10 @@ class ProviderRateLimited(Exception):
     """
 
 
+class ProviderDataUnavailable(Exception):
+    """A transient provider read failed before a complete sync could finish."""
+
+
 class ProviderNotConfiguredError(Exception):
     """Raised when a connection references a provider missing from the registry.
 

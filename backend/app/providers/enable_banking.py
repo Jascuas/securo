@@ -30,6 +30,7 @@ from app.providers.base import (
     ConnectionData,
     InstitutionData,
     InstitutionListData,
+    ProviderDataUnavailable,
     ProviderRateLimited,
     ProviderUserActionRequired,
     SessionExpiredError,
@@ -464,10 +465,12 @@ class EnableBankingProvider(BankProvider):
             picked = _pick_balance(bal_resp.get("balances") or [])
             balance = _balance_decimal(picked)
             currency = _balance_currency(picked, currency)
-        except (httpx.HTTPError, SessionExpiredError) as exc:
-            logger.warning(
-                "Failed to fetch balances for account %s: %s", uid, exc
-            )
+        except httpx.HTTPError:
+            # Zero is a real balance, not a safe fallback for an unavailable
+            # bank response. Never overwrite a stored balance with it.
+            raise ProviderDataUnavailable(
+                "Enable Banking account balances unavailable"
+            ) from None
         name = (
             raw.get("display_name")
             or raw.get("product")
@@ -519,19 +522,25 @@ class EnableBankingProvider(BankProvider):
         session_id = self._session_id(credentials)
         if not session_id:
             raise SessionExpiredError("Enable Banking session_id missing")
-        data = await self._request("GET", f"/sessions/{session_id}")
+        try:
+            data = await self._request("GET", f"/sessions/{session_id}")
+        except httpx.HTTPError:
+            raise ProviderDataUnavailable("Enable Banking session unavailable") from None
+        uids = self._account_uids(data)
+        if not uids:
+            raise ProviderDataUnavailable("Enable Banking returned no accounts for this session")
         result: list[AccountData] = []
-        for uid in self._account_uids(data):
+        for uid in uids:
             try:
                 details = await self._request("GET", f"/accounts/{uid}/details")
-            except (httpx.HTTPError, SessionExpiredError) as exc:
-                # Without details we can't safely name/type the account, and a
-                # bare-uid AccountData would overwrite the stored name with a
-                # placeholder. Skip this account for this run (non-destructive:
-                # the existing row and its transactions are left intact and the
-                # next sync retries) rather than corrupt it.
-                logger.warning("Failed to fetch details for account %s: %s", uid, exc)
-                continue
+            except httpx.HTTPError:
+                # A partial account list would let the caller advance the
+                # connection's sync timestamp without fetching every account's
+                # transactions. Abort before any account is persisted. Avoid
+                # logging account identifiers or upstream response bodies.
+                raise ProviderDataUnavailable(
+                    "Enable Banking account details unavailable"
+                ) from None
             result.append(await self._build_account(details))
         return result
 
@@ -553,11 +562,16 @@ class EnableBankingProvider(BankProvider):
             params: dict[str, Any] = {"date_from": date_from, "date_to": date_to}
             if continuation_key:
                 params["continuation_key"] = continuation_key
-            page = await self._request(
-                "GET",
-                f"/accounts/{account_external_id}/transactions",
-                params=params,
-            )
+            try:
+                page = await self._request(
+                    "GET",
+                    f"/accounts/{account_external_id}/transactions",
+                    params=params,
+                )
+            except httpx.HTTPError:
+                raise ProviderDataUnavailable(
+                    "Enable Banking transactions unavailable"
+                ) from None
             for raw_txn, status in self._iter_transactions(page):
                 parsed = self._build_transaction(
                     account_external_id, raw_txn, status, payee_source
@@ -573,14 +587,15 @@ class EnableBankingProvider(BankProvider):
             if not next_continuation_key:
                 break
             if next_continuation_key in seen_continuation_keys:
-                logger.warning(
-                    "Enable Banking pagination loop detected for account %s "
-                    "(repeated continuation key); stopping pagination",
-                    account_external_id,
+                raise ProviderDataUnavailable(
+                    "Enable Banking transaction pagination loop detected"
                 )
-                break
             seen_continuation_keys.add(next_continuation_key)
             continuation_key = next_continuation_key
+        else:
+            raise ProviderDataUnavailable(
+                "Enable Banking transaction pagination limit reached"
+            )
         return transactions
 
     @staticmethod
