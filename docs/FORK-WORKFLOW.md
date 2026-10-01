@@ -145,8 +145,8 @@ app-scoped read/deploy credentials and uses an independently scoped ephemeral
 Tailscale identity. PR CI receives none of these credentials and never deploys.
 Before deploying, actual TCP timeout checks must prove that the CI node cannot
 reach the reviewed unrelated private services. A closed port does not count as
-policy denial. Those destinations live only in the selected private repository
-variable `SECURO_TEST_DENIED_ENDPOINTS`.
+policy denial. Those destinations live only in the encrypted Actions secret
+`SECURO_TEST_DENIED_ENDPOINTS`; the check prints counts without addresses.
 
 The job sends a fixed app name, source SHA, build run/attempt, stable operation ID
 and server-selected configuration hash to a private HTTPS release API. It cannot

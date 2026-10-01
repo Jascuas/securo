@@ -51,7 +51,7 @@ jobs:
           log-mode: quiet
       - name: Verify CI cannot reach unrelated private services
         env:
-          DENIED_ENDPOINTS: ${{ vars.SECURO_TEST_DENIED_ENDPOINTS }}
+          DENIED_ENDPOINTS: ${{ secrets.SECURO_TEST_DENIED_ENDPOINTS }}
         run: python3 -B .github/scripts/release_network.py
       - name: Request selected release and reconcile final receipt
         env:
