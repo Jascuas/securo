@@ -15,6 +15,36 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None  # Never forward deployment/GitHub credentials to another URL.
 
 
+def publication_identity(run, request):
+    if (run.get('head_repository', {}).get('full_name') != 'Jascuas/securo'
+            or run.get('head_branch') != 'codex/tensor' or run.get('head_sha') != request['source_sha']
+            or run.get('path') != '.github/workflows/fork-release.yml'
+            or run.get('event') != 'workflow_dispatch' or run.get('run_attempt') != request['build_run_attempt']):
+        raise ValueError('Publication identity mismatch')
+    if run.get('status') == 'completed':
+        if run.get('conclusion') != 'success':
+            raise ValueError('Publication did not complete successfully')
+        return True
+    return False
+
+
+def wait_for_publication(request, token):
+    # Dispatch is the publication's last job; it must finish before server admission.
+    for _ in range(60):
+        req = urllib.request.Request('https://api.github.com/repos/Jascuas/securo/actions/runs/' + str(request['build_run_id']),
+                                     headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+                                              'User-Agent': 'securo-isolated-release'})
+        with urllib.request.build_opener(NoRedirect()).open(req, timeout=15) as response:
+            raw = response.read(131073)
+            if len(raw) > 131072:
+                raise ValueError('Oversized publication identity')
+            run = json.loads(raw)
+        if publication_identity(run, request):
+            return
+        time.sleep(2)
+    raise ValueError('Publication completion pending; no deployment requested')
+
+
 def endpoint(value):
     parsed = urllib.parse.urlparse(value)
     if (parsed.scheme != 'https' or not parsed.hostname or not parsed.hostname.endswith('.ts.net')
@@ -78,8 +108,11 @@ def main():
         raise ValueError('Select the reviewed source and server configuration')
     build = int(os.environ['BUILD_RUN_ID'])
     attempt = int(os.environ['BUILD_RUN_ATTEMPT'])
+    if not 0 < build < 2**63 or not 0 < attempt < 2**63:
+        raise ValueError('Select a valid publication identity')
     request = {'app': app, 'operation_id': f'github-{build}-{attempt}', 'source_sha': sha,
                'build_run_id': build, 'build_run_attempt': attempt, 'config_sha256': config}
+    wait_for_publication(request, os.environ['GITHUB_READ_TOKEN'])
     transport = Transport(os.environ['RELEASE_ORIGIN'], app, os.environ['RELEASE_DEPLOY_TOKEN'],
                           os.environ['RELEASE_READ_TOKEN'], os.environ['GITHUB_READ_TOKEN'])
     receipt = release(request, transport)
