@@ -7,7 +7,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-TERMINAL = {'completed', 'rejected', 'failed', 'cancelled', 'needs_recovery'}
+TERMINAL = {'completed', 'rejected', 'failed', 'cancelled', 'needs_recovery', 'recovered'}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
