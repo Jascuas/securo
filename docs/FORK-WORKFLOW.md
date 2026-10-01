@@ -132,6 +132,32 @@ private deployment procedure must require a recoverable encrypted backup,
 isolated restore evidence, migration assessment and explicit release selection.
 Merging source or publishing images changes no running service.
 
+## Isolated deployment requests
+
+`Deploy verified isolated fork` listens only for completed publication workflow
+runs and is paused unless repository variable `SECURO_CI_TEST_DEPLOY_ENABLED` is
+exactly `true`. It accepts this fork's successful integration-branch publication
+events only. It checks out its trusted workflow revision, receives separate
+app-scoped read/deploy credentials and uses an independently scoped ephemeral
+Tailscale identity. PR CI receives none of these credentials and never deploys.
+
+The job sends a fixed app name, source SHA, build run/attempt, stable operation ID
+and server-selected configuration hash to a private HTTPS release API. It cannot
+provide shell commands, Compose files, paths or arbitrary images. The server
+independently verifies GitHub using the job's short-lived read-only token, which
+is never persisted. Lost responses reconcile the same operation ID. Only a
+matching `completed` server receipt passes the deployment job.
+
+Before enabling, commission the private endpoint, exact repository/workflow/ref
+identity and negative network tests, server-side app configuration, expiring
+credentials and isolated application recovery evidence. Keep private origins,
+configuration hashes and access identifiers in repository variables/secrets.
+This initial target contains synthetic state only; production adoption remains
+a separate operation. The official Tailscale action must also be added explicitly
+to the selected action allowlist at its reviewed immutable reference:
+
+- `tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd` (v4)
+
 To check the release gate locally without credentials:
 
 ```sh

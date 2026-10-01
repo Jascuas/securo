@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Test release admission
-        run: python3 -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_release_*.py' -v
 
   backend-tests:
     name: Backend Tests
