@@ -12,6 +12,24 @@ permissions:
   contents: read
 
 jobs:
+  publish-reviewed-source:
+    name: Dispatch reviewed image publication
+    needs: [release-policy, backend-tests, migration-chain, frontend-checks, helm-checks]
+    if: github.repository == 'Jascuas/securo' && github.event_name == 'push' && github.ref == 'refs/heads/codex/tensor'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch exact tested revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/fork-release.yml/dispatches" \
+            -f ref=codex/tensor -f "inputs[source_sha]=$SOURCE_SHA"
+
   release-policy:
     name: Release Policy
     runs-on: ubuntu-latest

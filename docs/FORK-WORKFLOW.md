@@ -39,8 +39,11 @@ remove the superseded fork-specific implementation during a reviewed update.
 ## CI and publication
 
 The audited `CI` workflow checks pushes and PRs targeting `main` or `codex/tensor`
-and supports manual dispatch. Its GitHub token has `contents: read`; it does not
-publish images or deploy. Fork CI omits upstream coverage-badge extraction and
+and supports manual dispatch. Test jobs have `contents: read`. After all checks
+pass on a push to this fork's `codex/tensor`, its final job uses `actions: write`
+to dispatch `Publish Fork Images` with that exact SHA. PRs, upstream `main`,
+manual CI runs and failed checks cannot dispatch publication. It does not
+deploy or hold server credentials. Fork CI omits upstream coverage-badge extraction and
 publication; no badge credential is needed. Repository Actions uses a selected
 allowlist matching the audited CI action references:
 
@@ -74,12 +77,15 @@ an overall workflow status as evidence that every suite executed.
 
 ## Publishing a candidate
 
-`Publish Fork Images` (`fork-release.yml`) is manually dispatched from
+`Publish Fork Images` (`fork-release.yml`) is dispatched automatically after
+successful integration-branch push CI; manual dispatch remains available from
 `codex/tensor`. It never deploys or connects to a server. Give it a full lowercase
 40-character source commit SHA reachable from that branch. The gate requires a
 successful `CI` push or manual run for that exact commit on `codex/tensor`, checks
 all four application jobs, and verifies their real test/lint steps succeeded.
-A successful PR run with skipped suites cannot authorize publication. Release
+A successful PR run with skipped suites cannot authorize publication. The gate
+waits at most 60 seconds for the dispatching CI run to finalize, retaining the
+same complete-run and required-step checks. Release
 admission tests also run in CI's `Release Policy` job.
 
 ```sh

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import time
 
 
 REQUIRED_STEPS = {
@@ -67,8 +68,22 @@ def find_complete_run(repo, source_sha, fetch=api_pages):
     raise ValueError("No complete successful integration-branch CI run for this exact SHA")
 
 
+def wait_for_complete_run(repo, source_sha, fetch=api_pages, sleep=time.sleep, attempts=13):
+    """Dispatch is CI's final job; allow bounded time for its run to finalize."""
+    if not re.fullmatch(r"[0-9a-f]{40}", source_sha):
+        raise ValueError("Source must be a full lowercase 40-character commit SHA")
+    for attempt in range(attempts):
+        try:
+            return find_complete_run(repo, source_sha, fetch)
+        except ValueError:
+            if attempt + 1 == attempts:
+                raise
+            sleep(5)
+    raise ValueError("No complete successful integration-branch CI run for this exact SHA")
+
+
 if __name__ == "__main__":
-    run_id = find_complete_run(os.environ["GITHUB_REPOSITORY"], os.environ["SOURCE_SHA"])
+    run_id = wait_for_complete_run(os.environ["GITHUB_REPOSITORY"], os.environ["SOURCE_SHA"])
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
         output.write(f"ci_run_id={run_id}\n")
     print(f"Verified complete CI run {run_id}")

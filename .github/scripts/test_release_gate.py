@@ -2,7 +2,7 @@
 
 import unittest
 
-from release_gate import REQUIRED_STEPS, complete_jobs, find_complete_run, matches_source
+from release_gate import REQUIRED_STEPS, complete_jobs, find_complete_run, matches_source, wait_for_complete_run
 
 SHA = "a" * 40
 
@@ -32,6 +32,24 @@ def successful_jobs():
 
 
 class ReleaseGateTests(unittest.TestCase):
+    def test_waits_for_ci_finalization_without_weakening_required_steps(self):
+        waits = []
+        calls = []
+
+        def fetch(path, key):
+            if key == "workflow_runs":
+                calls.append(path)
+                return [successful_run(status="in_progress" if len(calls) == 1 else "completed")]
+            return successful_jobs()
+
+        self.assertEqual(wait_for_complete_run("owner/repo", SHA, fetch, waits.append), 17)
+        self.assertEqual(waits, [5])
+        with self.assertRaises(ValueError):
+            wait_for_complete_run("owner/repo", SHA, lambda *_: [], waits.append, attempts=2)
+        self.assertEqual(waits, [5, 5])
+        with self.assertRaises(ValueError):
+            wait_for_complete_run("owner/repo", "main", lambda *_: self.fail("API called"), waits.append)
+
     def test_only_complete_exact_integration_runs(self):
         self.assertTrue(matches_source(successful_run(), SHA))
         self.assertTrue(matches_source(successful_run(event="workflow_dispatch"), SHA))
