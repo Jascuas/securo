@@ -130,7 +130,9 @@ those exact digests for deployment. Building images verifies neither production
 migration behavior nor financial imports. Before deploying any candidate, the
 private deployment procedure must require a recoverable encrypted backup,
 isolated restore evidence, migration assessment and explicit release selection.
-Merging source or publishing images changes no running service.
+Image publication alone does not establish deployment success. The selected
+isolated deployment automation described below must complete and verify its
+server receipt before a merged source revision is considered deployed.
 
 ## Isolated deployment requests
 
@@ -170,3 +172,23 @@ To check the release gate locally without credentials:
 ```sh
 python3 -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
 ```
+
+## Merge-to-test acceptance checklist
+
+Use a reviewed PR without schema or protected deployment-control changes to
+prove the enabled isolated path. Record the full merged revision and follow its
+exact CI, publication and deployment runs.
+
+1. PR checks pass without publishing or deploying the unmerged revision.
+2. The merge runs every required CI suite and automatically publishes both
+   immutable component images with one matching release manifest.
+3. The deployment job proves denied access to all selected private destinations,
+   then requests the fixed isolated app using the successful publication identity.
+4. The final server receipt matches the merged source, image digests, publication
+   attempt and selected configuration, with status `completed`.
+5. The isolated app serves the merged frontend revision and preserves its
+   authenticated synthetic state. Existing production services remain intact.
+
+A skipped deployment job leaves the revision published only. A failed or held
+receipt requires operator investigation and the reviewed recovery procedure;
+it never authorizes a blind migration retry or reports a successful deployment.
