@@ -1,6 +1,6 @@
 """Synthetic receipt reconciliation without credentials or private network access."""
 import unittest
-from release_client import endpoint, release
+from release_client import endpoint, publication_identity, release
 
 REQUEST = {'app': 'test', 'operation_id': 'fixed-id', 'source_sha': 'a' * 40,
            'build_run_id': 100, 'build_run_attempt': 1, 'config_sha256': 'b' * 64}
@@ -17,6 +17,17 @@ class Fixture:
 
 
 class ClientTests(unittest.TestCase):
+    def test_publication_waits_for_success_and_refuses_foreign_or_failed_run(self):
+        run = {'head_repository': {'full_name': 'Jascuas/securo'}, 'head_branch': 'codex/tensor',
+               'head_sha': REQUEST['source_sha'], 'path': '.github/workflows/fork-release.yml',
+               'event': 'workflow_dispatch', 'run_attempt': 1, 'status': 'in_progress'}
+        self.assertFalse(publication_identity(run, REQUEST))
+        self.assertTrue(publication_identity({**run, 'status': 'completed', 'conclusion': 'success'}, REQUEST))
+        for changes in ({'head_sha': 'f' * 40}, {'event': 'pull_request'}, {'run_attempt': 2},
+                        {'head_repository': {'full_name': 'other/securo'}},
+                        {'status': 'completed', 'conclusion': 'failure'}):
+            with self.assertRaises(ValueError):
+                publication_identity({**run, **changes}, REQUEST)
     def test_lost_response_reads_existing_operation(self):
         receipt = {**REQUEST, 'status': 'completed'}
         transport = Fixture([(0, {}), (200, {**REQUEST, 'status': 'migrated'}), (200, receipt)])

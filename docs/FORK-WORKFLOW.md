@@ -134,12 +134,19 @@ Merging source or publishing images changes no running service.
 
 ## Isolated deployment requests
 
-`Deploy verified isolated fork` listens only for completed publication workflow
-runs and is paused unless repository variable `SECURO_CI_TEST_DEPLOY_ENABLED` is
-exactly `true`. It accepts this fork's successful integration-branch publication
-events only. It checks out its trusted workflow revision, receives separate
+`Deploy verified isolated fork` is explicitly dispatched by the publication's
+last job and is paused unless repository variable `SECURO_CI_TEST_DEPLOY_ENABLED`
+is exactly `true`. Explicit dispatch is supported with `GITHUB_TOKEN`; the
+completion-event chain did not create a run in the actual integration trial.
+The client waits for that publication to finish successfully and verifies its
+repository, integration branch, workflow, source SHA and attempt before making
+any release request. It checks out its trusted workflow revision, receives separate
 app-scoped read/deploy credentials and uses an independently scoped ephemeral
 Tailscale identity. PR CI receives none of these credentials and never deploys.
+Before deploying, actual TCP timeout checks must prove that the CI node cannot
+reach the reviewed unrelated private services. A closed port does not count as
+policy denial. Those destinations live only in the selected private repository
+variable `SECURO_TEST_DENIED_ENDPOINTS`.
 
 The job sends a fixed app name, source SHA, build run/attempt, stable operation ID
 and server-selected configuration hash to a private HTTPS release API. It cannot
