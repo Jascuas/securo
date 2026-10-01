@@ -1,0 +1,54 @@
+name: Deploy verified isolated fork
+on:
+  workflow_run:
+    workflows: [Publish Fork Images]
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: securo-ci-test-deploy
+  cancel-in-progress: false
+jobs:
+  deploy-test:
+    if: >-
+      vars.SECURO_CI_TEST_DEPLOY_ENABLED == 'true' &&
+      github.repository == 'Jascuas/securo' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == 'Jascuas/securo' &&
+      github.event.workflow_run.head_branch == 'codex/tensor' &&
+      github.event.workflow_run.path == '.github/workflows/fork-release.yml' &&
+      (github.event.workflow_run.event == 'workflow_dispatch' || github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Check out trusted request client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Connect scoped ephemeral deployment node
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4
+        with:
+          oauth-client-id: ${{ secrets.TS_SECURO_TEST_CLIENT_ID }}
+          audience: ${{ secrets.TS_SECURO_TEST_AUDIENCE }}
+          tags: tag:securo-ci-deploy-test
+          version: 1.102.4
+          sha256sum: 50748df1045e60b5b695f19f4c56b0da36c019948b440fb456b6584a50f0d8b9
+          hostname: securo-deploy-${{ github.run_id }}-${{ github.run_attempt }}
+          log-mode: quiet
+      - name: Request selected release and reconcile final receipt
+        env:
+          RELEASE_ORIGIN: ${{ vars.SECURO_TEST_RELEASE_ORIGIN }}
+          CONFIG_SHA256: ${{ vars.SECURO_TEST_CONFIG_SHA256 }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
+          BUILD_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RELEASE_DEPLOY_TOKEN: ${{ secrets.SECURO_TEST_DEPLOY_TOKEN }}
+          RELEASE_READ_TOKEN: ${{ secrets.SECURO_TEST_READ_TOKEN }}
+          GITHUB_READ_TOKEN: ${{ github.token }}
+        run: python3 -B .github/scripts/release_client.py
