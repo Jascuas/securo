@@ -183,5 +183,5 @@ jobs:
         run: |
           set -euo pipefail
           gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/fork-deploy-production.yml/dispatches" \
-            -f ref=codex/tensor -f "inputs[source_sha]=$SOURCE_SHA" \
+            -f ref=codex/tensor -f "inputs[mode]=deploy" -f "inputs[source_sha]=$SOURCE_SHA" \
             -f "inputs[build_run_id]=$BUILD_RUN_ID" -f "inputs[build_run_attempt]=$BUILD_RUN_ATTEMPT"

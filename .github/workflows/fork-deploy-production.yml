@@ -2,17 +2,23 @@ name: Deploy verified production fork
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: Verify access without deployment, or deploy an exact publication
+        required: true
+        default: verify_access
+        type: choice
+        options: [verify_access, deploy]
       source_sha:
         description: Exact published source revision
-        required: true
+        required: false
         type: string
       build_run_id:
         description: Successful publication run ID
-        required: true
+        required: false
         type: string
       build_run_attempt:
         description: Publication attempt
-        required: true
+        required: false
         type: string
 permissions:
   contents: read
@@ -23,7 +29,8 @@ concurrency:
 jobs:
   deploy-production:
     if: >-
-      vars.SECURO_PRODUCTION_DEPLOY_ENABLED == 'true' &&
+      (inputs.mode == 'verify_access' ||
+       (inputs.mode == 'deploy' && vars.SECURO_PRODUCTION_DEPLOY_ENABLED == 'true')) &&
       github.repository == 'Jascuas/securo' &&
       github.ref == 'refs/heads/codex/tensor' &&
       github.event_name == 'workflow_dispatch'
@@ -53,7 +60,14 @@ jobs:
         env:
           DENIED_ENDPOINTS: ${{ secrets.SECURO_PRODUCTION_DENIED_ENDPOINTS }}
         run: python3 -B .github/scripts/release_network.py
+      - name: Verify scoped production credentials without admitting a release
+        env:
+          RELEASE_ORIGIN: ${{ vars.SECURO_PRODUCTION_RELEASE_ORIGIN }}
+          RELEASE_DEPLOY_TOKEN: ${{ secrets.SECURO_PRODUCTION_DEPLOY_TOKEN }}
+          RELEASE_READ_TOKEN: ${{ secrets.SECURO_PRODUCTION_READ_TOKEN }}
+        run: python3 -B .github/scripts/release_access.py
       - name: Request selected production release and reconcile final receipt
+        if: inputs.mode == 'deploy'
         env:
           RELEASE_APP: securo-production
           RELEASE_ORIGIN: ${{ vars.SECURO_PRODUCTION_RELEASE_ORIGIN }}

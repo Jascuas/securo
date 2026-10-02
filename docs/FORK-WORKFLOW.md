@@ -184,6 +184,13 @@ group never cancels an in-progress release. The client allows up to70 minutes
 to reconcile the server's bounded capture and release, within a90-minute job.
 A pending result remains pending and requires inspection of the same operation.
 
+Manual dispatch defaults to `verify_access`: it runs the actual network denials
+and verifies separate production read/deploy scopes, invalid-token denial and
+other-app denial without admitting a release. Empty deploy input must be refused
+before release admission, and release history must remain unchanged. This mode
+works while automatic production deployment is disabled. Publication explicitly
+selects `mode=deploy`, which also runs these access checks before release admission.
+
 Production uses separate `TS_SECURO_PRODUCTION_CLIENT_ID`,
 `TS_SECURO_PRODUCTION_AUDIENCE`, `SECURO_PRODUCTION_DEPLOY_TOKEN`,
 `SECURO_PRODUCTION_READ_TOKEN` and `SECURO_PRODUCTION_DENIED_ENDPOINTS` secrets,
