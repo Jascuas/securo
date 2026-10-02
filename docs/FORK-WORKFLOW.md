@@ -79,7 +79,8 @@ an overall workflow status as evidence that every suite executed.
 
 `Publish Fork Images` (`fork-release.yml`) is dispatched automatically after
 successful integration-branch push CI; manual dispatch remains available from
-`codex/tensor`. It never deploys or connects to a server. Give it a full lowercase
+`codex/tensor`. Its image-building jobs never connect to a deployment server.
+Separately gated final jobs dispatch the named deployment workflows. Give it a full lowercase
 40-character source commit SHA reachable from that branch. The gate requires a
 successful `CI` push or manual run for that exact commit on `codex/tensor`, checks
 all four application jobs, and verifies their real test/lint steps succeeded.
@@ -172,6 +173,33 @@ To check the release gate locally without credentials:
 ```sh
 python3 -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
 ```
+
+## Production deployment requests
+
+`Deploy verified production fork` uses the same exact-publication and receipt
+contract for the fixed `securo-production` application. Publication dispatches
+it only when `SECURO_PRODUCTION_DEPLOY_ENABLED` is exactly `true`; an absent
+variable keeps production deployment disabled. Its independent concurrency
+group never cancels an in-progress release. The client allows up to70 minutes
+to reconcile the server's bounded capture and release, within a90-minute job.
+A pending result remains pending and requires inspection of the same operation.
+
+Production uses separate `TS_SECURO_PRODUCTION_CLIENT_ID`,
+`TS_SECURO_PRODUCTION_AUDIENCE`, `SECURO_PRODUCTION_DEPLOY_TOKEN`,
+`SECURO_PRODUCTION_READ_TOKEN` and `SECURO_PRODUCTION_DENIED_ENDPOINTS` secrets,
+and its own release-origin and configuration-hash variables. The federated
+identity must admit only this repository, integration branch and production
+workflow; its ephemeral node uses `tag:securo-ci-deploy-production`. Existing
+isolated credentials and identity must remain limited to their isolated app.
+The client allowlists both named applications, while server credentials enforce
+the selected app scope; a receipt for another application fails verification.
+
+Before activation, adopt the existing application version through the private
+controlled procedure, verify encrypted capture and compatible isolated recovery,
+complete normal user acceptance, and commission the reviewed production access
+boundary. Update server admission pins and selected configuration hashes for
+reviewed deployment-control changes before selecting a release. Merely merging
+this workflow does not enable production access or demonstrate deployment success.
 
 ## Merge-to-test acceptance checklist
 

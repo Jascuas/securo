@@ -8,6 +8,13 @@ import urllib.parse
 import urllib.request
 
 TERMINAL = {'completed', 'rejected', 'failed', 'cancelled', 'needs_recovery', 'recovered'}
+APPLICATION_LIMITS = {'securo-ci-test': 600, 'securo-production': 4200}
+
+
+def application(value):
+    if value not in APPLICATION_LIMITS:
+        raise ValueError('Select a reviewed release application')
+    return value, APPLICATION_LIMITS[value]
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -101,7 +108,7 @@ def release(request, transport, sleep=time.sleep, clock=time.monotonic, limit=60
 
 
 def main():
-    app = 'securo-ci-test'
+    app, limit = application(os.environ.get('RELEASE_APP', 'securo-ci-test'))
     sha = os.environ['SOURCE_SHA']
     config = os.environ['CONFIG_SHA256']
     if not re.fullmatch(r'[0-9a-f]{40}', sha) or not re.fullmatch(r'[0-9a-f]{64}', config):
@@ -115,10 +122,10 @@ def main():
     wait_for_publication(request, os.environ['GITHUB_READ_TOKEN'])
     transport = Transport(os.environ['RELEASE_ORIGIN'], app, os.environ['RELEASE_DEPLOY_TOKEN'],
                           os.environ['RELEASE_READ_TOKEN'], os.environ['GITHUB_READ_TOKEN'])
-    receipt = release(request, transport)
+    receipt = release(request, transport, limit=limit)
     safe = {key: receipt[key] for key in ('app', 'operation_id', 'status', 'source_sha', 'build_run_id', 'build_run_attempt')}
     with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-        output.write('## Isolated application release\n\n```json\n' + json.dumps(safe, indent=2) + '\n```\n')
+        output.write('## Verified application release\n\n```json\n' + json.dumps(safe, indent=2) + '\n```\n')
     print(json.dumps(safe))
     if receipt['status'] != 'completed':
         raise SystemExit('The server did not verify release completion')
