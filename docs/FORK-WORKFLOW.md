@@ -134,61 +134,28 @@ Image publication alone does not establish deployment success. The selected
 isolated deployment automation described below must complete and verify its
 server receipt before a merged source revision is considered deployed.
 
-## Isolated deployment requests
+## Deployment selection notification
 
-`Deploy verified isolated fork` is explicitly dispatched by the publication's
-last job and is paused unless repository variable `SECURO_CI_TEST_DEPLOY_ENABLED`
-is exactly `true`. Explicit dispatch is supported with `GITHUB_TOKEN`; the
-completion-event chain did not create a run in the actual integration trial.
-The client waits for that publication to finish successfully and verifies its
-repository, integration branch, workflow, source SHA and attempt before making
-any release request. It checks out its trusted workflow revision, receives separate
-app-scoped read/deploy credentials and uses an independently scoped ephemeral
-Tailscale identity. PR CI receives none of these credentials and never deploys.
-Before deploying, actual TCP timeout checks must prove that the CI node cannot
-reach the reviewed unrelated private services. A closed port does not count as
-policy denial. Those destinations live only in the encrypted Actions secret
-`SECURO_TEST_DENIED_ENDPOINTS`; the check prints counts without addresses.
+The last publication job sends the immutable manifest to a configured private
+repository with `repository_dispatch`. It is paused unless
+`SECURO_RELEASE_SELECTION_ENABLED` is exactly `true`. The destination and its
+separate least-privilege dispatch credential are Actions secrets. Publication
+success alone does not prove deployment; the private repository owns live
+admission, image-only selection, checked merge, its restricted host command and
+independent acceptance. PR CI receives no dispatch or host credentials.
 
-The job sends a fixed app name, source SHA, build run/attempt, stable operation ID
-and server-selected configuration hash to a private HTTPS release API. It cannot
-provide shell commands, Compose files, paths or arbitrary images. The server
-independently verifies GitHub using the job's short-lived read-only token, which
-is never persisted. Lost responses reconcile the same operation ID. Only a
-matching `completed` server receipt passes the deployment job.
+The former isolated HTTPS controller client/workflow is retired from the active
+tree. Its tracked history remains in Git; do not commission its old endpoint or
+broaden old test identities to production. The new host transport and ownership
+cutover require separate review in the private deployment repositories.
 
-Before enabling, commission the private endpoint, exact repository/workflow/ref
-identity and negative network tests, server-side app configuration, expiring
-credentials and isolated application recovery evidence. Keep private origins,
-configuration hashes and access identifiers in repository variables/secrets.
-This initial target contains synthetic state only; production adoption remains
-a separate operation. The official Tailscale action must also be added explicitly
-to the selected action allowlist at its reviewed immutable reference:
-
-- `tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd` (v4)
-
-To check the release gate locally without credentials:
+To check source publication admission locally without credentials:
 
 ```sh
-python3 -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
+python3 -B -m unittest discover -s .github/scripts -p 'test_release_gate.py' -v
 ```
 
-## Merge-to-test acceptance checklist
-
-Use a reviewed PR without schema or protected deployment-control changes to
-prove the enabled isolated path. Record the full merged revision and follow its
-exact CI, publication and deployment runs.
-
-1. PR checks pass without publishing or deploying the unmerged revision.
-2. The merge runs every required CI suite and automatically publishes both
-   immutable component images with one matching release manifest.
-3. The deployment job proves denied access to all selected private destinations,
-   then requests the fixed isolated app using the successful publication identity.
-4. The final server receipt matches the merged source, image digests, publication
-   attempt and selected configuration, with status `completed`.
-5. The isolated app serves the merged frontend revision and preserves its
-   authenticated synthetic state. Existing production services remain intact.
-
-A skipped deployment job leaves the revision published only. A failed or held
-receipt requires operator investigation and the reviewed recovery procedure;
-it never authorizes a blind migration retry or reports a successful deployment.
+A release is deployed only when the private deployment job verifies a matching
+server result and the actual authenticated runtime. A skipped notification leaves
+it published only. Failure or an uncertain result requires reconciliation, not a
+blind retry or an implicit migration.
