@@ -48,6 +48,8 @@ jobs:
         run: python3 .github/scripts/release_gate.py
 
   publish:
+    outputs:
+      release_manifest: ${{ steps.manifest.outputs.release_manifest }}
     needs: verify-source
     runs-on: ubuntu-latest
     permissions:
@@ -101,6 +103,7 @@ jobs:
           build-args: |
             VITE_APP_VERSION=fork-${{ inputs.source_sha }}
       - name: Record immutable release manifest
+        id: manifest
         env:
           BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
           FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
@@ -131,6 +134,8 @@ jobs:
               "build_run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
           }
           Path("release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write("release_manifest=" + json.dumps(manifest, separators=(",", ":")) + "\n")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
               summary.write("## Published candidate images\n\n```json\n")
               summary.write(json.dumps(manifest, indent=2) + "\n```\n")
@@ -144,23 +149,34 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  dispatch-isolated-deployment:
-    name: Dispatch isolated deployment request
+  notify-deployment-selection:
+    name: Notify private deployment selection
     needs: [verify-source, publish]
-    if: vars.SECURO_CI_TEST_DEPLOY_ENABLED == 'true' && github.repository == 'Jascuas/securo' && github.ref == 'refs/heads/codex/tensor'
+    if: vars.SECURO_RELEASE_SELECTION_ENABLED == 'true' && github.repository == 'Jascuas/securo' && github.ref == 'refs/heads/codex/tensor'
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    permissions:
-      actions: write
+    permissions: {}
     steps:
-      - name: Dispatch exact published candidate
+      - name: Dispatch immutable publication to deployment repository
         env:
-          GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ inputs.source_sha }}
-          BUILD_RUN_ID: ${{ github.run_id }}
-          BUILD_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GH_TOKEN: ${{ secrets.SECURO_DEPLOY_DISPATCH_TOKEN }}
+          RELEASE_MANIFEST: ${{ needs.publish.outputs.release_manifest }}
+          DEPLOY_REPOSITORY: ${{ secrets.SECURO_DEPLOY_REPOSITORY }}
         run: |
-          set -euo pipefail
-          gh api --method POST "repos/$GITHUB_REPOSITORY/actions/workflows/fork-deploy-test.yml/dispatches" \
-            -f ref=codex/tensor -f "inputs[source_sha]=$SOURCE_SHA" \
-            -f "inputs[build_run_id]=$BUILD_RUN_ID" -f "inputs[build_run_attempt]=$BUILD_RUN_ATTEMPT"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+
+          target = os.environ["DEPLOY_REPOSITORY"]
+          if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", target):
+              raise SystemExit("Missing private deployment destination")
+          payload = {"event_type": "securo-release-published",
+                     "client_payload": {"manifest": json.loads(os.environ["RELEASE_MANIFEST"])}}
+          result = subprocess.run(
+              ["gh", "api", "--method", "POST", "repos/" + target + "/dispatches", "--input", "-"],
+              input=json.dumps(payload), text=True, capture_output=True)
+          if result.returncode:
+              raise SystemExit("Private release selection dispatch failed")
+          PY
