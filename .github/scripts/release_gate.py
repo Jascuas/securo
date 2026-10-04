@@ -8,6 +8,7 @@ import time
 
 
 REQUIRED_STEPS = {
+    "Release Policy": {"Test release admission"},
     "Backend Tests": {"Lint with Ruff", "Type check with ty", "Run tests with coverage"},
     "Frontend Checks": {"Lint", "Type check & Build", "Run tests"},
     "Migration Chain": {"Check the Alembic revision chain"},
