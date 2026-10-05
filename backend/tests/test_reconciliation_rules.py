@@ -25,7 +25,9 @@ from app.services import (
     reconciliation_service,
 )
 
-TODAY = date.today()
+pytestmark = pytest.mark.usefixtures("invoice_clock")
+
+TODAY = date(2026, 9, 15)
 INVOICE_NODE = reconciliation_policy.MATCH_INVOICE["node"]
 RECURRING_NODE = reconciliation_policy.MATCH_RECURRING["node"]
 TRANSFER_NODE = reconciliation_policy.MATCH_TRANSFER["node"]

@@ -19,7 +19,9 @@ from app.models.account import Account
 from app.models.payee import Payee
 from app.services import invoice_forecast_service as forecast
 
-TODAY = date.today()
+pytestmark = pytest.mark.usefixtures("invoice_clock")
+
+TODAY = date(2026, 9, 15)
 SOON = TODAY + timedelta(days=10)
 FAR = TODAY + timedelta(days=400)
 
