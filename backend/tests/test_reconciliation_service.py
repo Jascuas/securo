@@ -20,7 +20,9 @@ from app.models.payee import Payee
 from app.models.transaction import Transaction
 from app.services import invoice_service, reconciliation_service
 
-TODAY = date.today()
+pytestmark = pytest.mark.usefixtures("invoice_clock")
+
+TODAY = date(2026, 9, 15)
 
 
 @pytest_asyncio.fixture

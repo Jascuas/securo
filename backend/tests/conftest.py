@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -22,6 +22,8 @@ os.environ["CREDENTIALS_DIRECTORY"] = ""
 # pgvector unchanged.
 import sqlalchemy.types  # noqa: E402
 import pgvector.sqlalchemy as _pgv  # noqa: E402
+
+
 
 
 class _VectorJSON(sqlalchemy.types.JSON):
@@ -164,6 +166,39 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
+
+
+@pytest.fixture
+def invoice_clock(request, monkeypatch):
+    """Keep invoice fixtures and business clocks on the same stable day.
+
+    These modules set TODAY during collection. Real midnight or month end
+    must not change an invoice's validity while the suite is still running.
+    Authentication/token clocks deliberately remain real.
+    """
+    from app.services import (
+        dashboard_service,
+        invoice_service,
+        reconciliation_service,
+        report_service,
+    )
+
+    reference = request.module.TODAY
+
+    class InvoiceDate(date):
+        @classmethod
+        def today(cls):
+            return cls.fromordinal(reference.toordinal())
+
+    class InvoiceDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = cls.combine(reference, time(12), timezone.utc)
+            return value.astimezone(tz) if tz else value.replace(tzinfo=None)
+
+    monkeypatch.setattr(invoice_service, 'datetime', InvoiceDateTime)
+    for module in (dashboard_service, reconciliation_service, report_service):
+        monkeypatch.setattr(module, 'date', InvoiceDate)
 
 
 @pytest.fixture
