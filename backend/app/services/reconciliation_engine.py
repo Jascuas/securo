@@ -207,6 +207,17 @@ class Expectation:
     #: from when it comes due. An invoice has both and they are weeks
     #: apart; a recurring occurrence has one, and leaves this null.
     issued: Optional[date] = None
+    #: The amounts at which this promise closes a whole part, smallest
+    #: first, ending at `amount`. Set when the money was agreed in
+    #: installments: a client paying the next one, or the next two at
+    #: once, is paying exactly what was asked, and comparing that against
+    #: the whole balance would call every installment a mismatch. Empty
+    #: for a promise that is one amount on one date.
+    stops: tuple[Decimal, ...] = ()
+
+    def targets(self) -> tuple[Decimal, ...]:
+        """What a movement's amount is compared against, in order."""
+        return self.stops or (self.amount,)
 
 
 @dataclass(frozen=True)
@@ -223,6 +234,10 @@ class Settlement:
 
     expectation: Expectation
     amount: Decimal
+    #: The part of the promise the amount was measured against: the next
+    #: installment, say, rather than the whole balance. None when that is
+    #: the balance itself.
+    target: Optional[Decimal] = None
 
 
 @dataclass
@@ -546,9 +561,9 @@ def _share_out(moved: Decimal, chosen: list[Expectation]) -> list[Settlement]:
     this is the same rule for a group: a payment can never write more than
     it carried. Without it a tolerance-based group was allowed to settle
     every invoice at its full value, so 980 arriving against two invoices
-    of 500 wrote 1.000 of allocations. `allocate` would not catch it: it
-    guards each invoice's own balance and knows nothing about how much of
-    the transaction earlier members of the group already spent.
+    of 500 wrote 1.000 of allocations. `allocate` now refuses a link larger
+    than what the transaction has left, but that would reject the whole
+    group; sharing the payment out here keeps every member within it.
 
     Short payments are shared **in proportion**, because that is what the
     shortfall usually is: a gateway's cut is a percentage of the gross, so
@@ -750,7 +765,9 @@ def evaluate(
                 return decision
             continue
 
-        matched: list[tuple[Expectation, Optional[Decimal], Optional[str], float]] = []
+        matched: list[
+            tuple[Expectation, Optional[Decimal], Optional[str], float, Optional[Decimal]]
+        ] = []
 
         for candidate in candidates:
             note = Consideration(expectation_id=candidate.id, strategy=strategy["id"])
@@ -852,9 +869,16 @@ def evaluate(
                     continue
                 naming = sum(1 for side in sides if side) / 2.0
 
-            ok, difference, difference_kind = _amount_verdict(
-                movement.amount, candidate.amount, rule.get("amount", {}), ratios
-            )
+            # Against each whole part in turn, next installment first,
+            # so the smallest honest reading wins: a payment of exactly
+            # one installment is that installment, not a part of the rest.
+            ok, difference, difference_kind, target = False, None, None, None
+            for target in candidate.targets():
+                ok, difference, difference_kind = _amount_verdict(
+                    movement.amount, target, rule.get("amount", {}), ratios
+                )
+                if ok:
+                    break
             if not ok:
                 note.rejected_by = Reason.AMOUNT
                 trace.append(note)
@@ -884,7 +908,7 @@ def evaluate(
 
             note.score = score
             trace.append(note)
-            matched.append((candidate, difference, difference_kind, score))
+            matched.append((candidate, difference, difference_kind, score, target))
 
         if not matched:
             continue
@@ -912,7 +936,7 @@ def evaluate(
             # whatever `unique_candidate` says next applies to those. A
             # clear winner is one candidate and links; a genuine tie is
             # still several and does not.
-            def _closeness(entry: tuple[Expectation, Any, Any, float]):
+            def _closeness(entry: tuple[Expectation, Any, Any, float, Any]):
                 return (-entry[3], abs((movement.when - entry[0].when).days))
 
             ranked = sorted(matched, key=_closeness)
@@ -944,14 +968,20 @@ def evaluate(
                         note.rejected_by = Reason.AMBIGUOUS
             matched.sort(key=lambda m: m[3], reverse=True)
 
-        winner, difference, difference_kind, score = matched[0]
+        winner, difference, difference_kind, score, target = matched[0]
         settled = min(abs(movement.amount), winner.amount)
         return Decision(
             port="linked" if outcome == "link" else "suggested",
             # Always a set, even when it holds one. A caller that has to
             # ask "is this the single kind or the several kind" before it
             # can write anything is a caller that will one day forget to.
-            settlements=[Settlement(expectation=winner, amount=settled)],
+            settlements=[
+                Settlement(
+                    expectation=winner,
+                    amount=settled,
+                    target=target if target != winner.amount else None,
+                )
+            ],
             expectation=winner,
             strategy=strategy["id"],
             amount=settled,

@@ -21,7 +21,6 @@ from app.schemas.rule import (
 from app.schemas.transaction import TransactionUpdate
 from app.services.rule_service import (
     DuplicateRuleError,
-    RULE_PACKS,
     apply_all_rules,
     apply_rules_to_transaction,
     apply_single_rule,
@@ -29,15 +28,14 @@ from app.services.rule_service import (
     create_rule,
     delete_rule,
     export_rules,
-    get_installed_packs,
     get_rule,
     get_rules,
     import_rules,
-    install_rule_pack,
     update_rule,
 )
 from app.services.transaction_service import update_transaction
 from app.services.category_service import create_default_categories
+from app.services.rule_packs import built_in_packs, install_rule_pack, list_rule_packs
 
 
 # ---------------------------------------------------------------------------
@@ -843,6 +841,75 @@ async def test_apply_all_rules_preserves_manually_edited_import_description(
 
 
 @pytest.mark.asyncio
+async def test_apply_all_rules_preserves_edited_legacy_synced_description(
+    session: AsyncSession, test_user, test_workspace
+):
+    """A synced row from before original_description existed keeps its edit.
+
+    The edit backfills the bank text, which is what lets the rules tell the
+    user's wording apart from the provider's.
+    """
+    account = Account(
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        name="Synced",
+        type="checking",
+        balance=Decimal("1000"),
+        currency="BRL",
+    )
+    session.add(account)
+    await session.flush()
+    transaction = Transaction(
+        user_id=test_user.id,
+        workspace_id=test_workspace.id,
+        account_id=account.id,
+        description="PAG*LOJA 123",
+        original_description=None,
+        amount=Decimal("80.00"),
+        date=date(2026, 1, 12),
+        type="debit",
+        source="sync",
+        payee="LOJA EXEMPLO",
+    )
+    session.add(transaction)
+    await session.commit()
+
+    updated = await update_transaction(
+        session,
+        transaction.id,
+        test_workspace.id,
+        test_user.id,
+        TransactionUpdate(description="Birthday gift"),
+    )
+    assert updated is not None
+    assert updated.original_description == "PAG*LOJA 123"
+
+    await create_rule(
+        session,
+        test_workspace.id,
+        test_user.id,
+        RuleCreate(
+            name="Loja normalization",
+            conditions=[
+                RuleCondition(field="payee", op="contains", value="LOJA EXEMPLO")
+            ],
+            actions=[
+                RuleAction(op="set_description", value="Loja Exemplo"),
+                RuleAction(op="append_notes", value="#shopping"),
+            ],
+            apply_to_existing=False,
+        ),
+    )
+
+    assert await apply_all_rules(session, test_workspace.id) == 1
+    await session.refresh(transaction)
+    assert transaction.description == "Birthday gift"
+    assert transaction.original_description == "PAG*LOJA 123"
+    assert transaction.description_is_rule_managed is False
+    assert transaction.notes == "#shopping"
+
+
+@pytest.mark.asyncio
 async def test_apply_single_rule_preserves_manually_edited_import_description(
     session: AsyncSession, test_user, test_workspace
 ):
@@ -1206,7 +1273,7 @@ async def test_install_rule_pack_works_across_languages(session: AsyncSession, t
 
     # Every BR rule's set_category action should have resolved to a real
     # English category UUID, so the pack installs in full.
-    assert len(result.rules) == len(RULE_PACKS["BR"]["rules"])
+    assert len(result.rules) == len(built_in_packs()["BR"].rules)
     assert result.unresolved == 0
 
 
@@ -1222,7 +1289,7 @@ async def test_install_rule_pack_reports_unresolved_when_categories_missing(
     result = await install_rule_pack(session, test_workspace.id, test_user.id, "BR", lang="pt-BR")
 
     assert len(result.rules) == 0
-    assert result.unresolved == len(RULE_PACKS["BR"]["rules"])
+    assert result.unresolved == len(built_in_packs()["BR"].rules)
 
 
 @pytest.mark.asyncio
@@ -1241,7 +1308,7 @@ async def test_install_rule_pack_creates_missing_categories_when_opted_in(
         create_missing_categories=True,
     )
 
-    assert len(result.rules) == len(RULE_PACKS["BR"]["rules"])
+    assert len(result.rules) == len(built_in_packs()["BR"].rules)
     assert result.unresolved == 0
     assert result.categories_created > 0
 
@@ -1254,13 +1321,108 @@ async def test_install_rule_pack_unknown_returns_empty(session: AsyncSession, te
 
 
 @pytest.mark.asyncio
-async def test_get_installed_packs(session: AsyncSession, test_user, test_workspace):
+async def test_list_rule_packs_reports_installed(session: AsyncSession, test_user, test_workspace):
+    workspace_id = test_workspace.id
     await create_default_categories(session, test_user.id, lang="pt-BR")
 
-    packs_before = await get_installed_packs(session, test_user.id)
-    assert packs_before["BR"] is False
+    def installed(statuses):
+        return next(s.installed for s in statuses if s.pack.code == "BR")
 
-    await install_rule_pack(session, test_workspace.id, test_user.id, "BR", lang="pt-BR")
+    assert installed(await list_rule_packs(session, workspace_id)) is False
+    await install_rule_pack(session, workspace_id, test_user.id, "BR", lang="pt-BR")
+    assert installed(await list_rule_packs(session, workspace_id)) is True
 
-    packs_after = await get_installed_packs(session, test_user.id)
-    assert packs_after["BR"] is True
+
+# ---------------------------------------------------------------------------
+# Status condition
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("op", ["equals", "not_equals"])
+@pytest.mark.parametrize("value", ["pending", "posted"])
+async def test_create_rule_accepts_status_condition(
+    session: AsyncSession, test_user, test_workspace, op, value
+):
+    rule = await create_rule(
+        session,
+        test_workspace.id,
+        test_user.id,
+        RuleCreate(
+            name=f"Status {op} {value}",
+            conditions=[RuleCondition(field="status", op=op, value=value)],
+            actions=[RuleAction(op="ignore", value=True)],
+        ),
+    )
+    assert rule.conditions == [{"field": "status", "op": op, "value": value}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("op", "value"),
+    [("contains", "pending"), ("regex", "pend"), ("gt", "pending"), ("equals", "reserved")],
+)
+async def test_create_rule_rejects_invalid_status_condition(
+    session: AsyncSession, test_user, test_workspace, op, value
+):
+    with pytest.raises(ValueError, match="Invalid rule condition"):
+        await create_rule(
+            session,
+            test_workspace.id,
+            test_user.id,
+            RuleCreate(
+                name="Bad status",
+                conditions=[RuleCondition(field="status", op=op, value=value)],
+                actions=[RuleAction(op="ignore", value=True)],
+            ),
+        )
+
+
+@pytest.mark.asyncio
+async def test_status_rule_applies_to_pending_transaction_only(
+    session: AsyncSession, test_user, test_workspace, test_categories
+):
+    await create_rule(
+        session,
+        test_workspace.id,
+        test_user.id,
+        RuleCreate(
+            name="Pending card holds",
+            conditions=[RuleCondition(field="status", op="equals", value="pending")],
+            actions=[RuleAction(op="set_category", value=str(test_categories[1].id))],
+        ),
+    )
+
+    account = Account(
+        id=uuid.uuid4(),
+        user_id=test_user.id,
+        name="StatusAcc",
+        type="checking",
+        balance=Decimal("1000"),
+        currency="BRL",
+    )
+    session.add(account)
+    await session.commit()
+
+    pending, posted = (
+        Transaction(
+            id=uuid.uuid4(),
+            user_id=test_user.id,
+            account_id=account.id,
+            description="CARD PURCHASE",
+            amount=Decimal("12.00"),
+            date=date(2025, 3, 1),
+            type="debit",
+            source="manual",
+            status=status,
+            created_at=datetime.now(timezone.utc),
+        )
+        for status in ("pending", "posted")
+    )
+    session.add_all([pending, posted])
+    await session.commit()
+
+    await apply_rules_to_transaction(session, test_user.id, pending)
+    await apply_rules_to_transaction(session, test_user.id, posted)
+
+    assert (pending.category_id, posted.category_id) == (test_categories[1].id, None)

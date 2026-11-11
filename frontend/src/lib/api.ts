@@ -1,4 +1,6 @@
 import axios from 'axios'
+import type { AxiosResponse } from 'axios'
+import { markDataChanged } from '@/lib/data-changed'
 import type { NumberFormat, DateFormat } from '@/lib/format'
 import type {
   User,
@@ -9,20 +11,40 @@ import type {
   AppSetting,
   Category,
   CategoryRuleUsage,
+  CategoryUsage,
   CategoryGroup,
   BankConnection,
   ConnectionSettings,
+  SyncResult,
   Account,
   AccountSummary,
+  AccountRunningBalancePoint,
   Collection,
   CreditCardBill,
+  LoanBalanceAdjustment,
+  LoanBalanceUpdate,
+  LoanSchedule,
+  DescriptionSuggestion,
   Transaction,
   Payee,
   PayeeSummary,
+  DeductionKind,
+  InstallmentInput,
   Invoice,
   InvoiceDirection,
   InvoiceDocumentPayload,
   InvoiceFacets,
+  InvoiceSchedule,
+  InvoiceScheduleEndReason,
+  InvoiceScheduleEndType,
+  InvoiceScheduleFrequency,
+  InvoiceSchedulePeriod,
+  InvoiceScheduleStatus,
+  InvoiceScheduleSummary,
+  Product,
+  ProductFieldSpec,
+  ProductKind,
+  PriceBilling,
   InvoiceLineInput,
   InvoiceShareLink,
   IssuerProfile,
@@ -34,10 +56,18 @@ import type {
   TransactionCalendarResponse,
   Budget,
   BudgetVsActual,
+  BudgetSuggestionResponse,
   Rule,
   RuleAction,
   RuleConditionNode,
   RuleExportPayload,
+  RulePack,
+  RulePackRemoval,
+  InstalledPlugin,
+  PluginAction,
+  PluginCatalogEntry,
+  PluginPlan,
+  PluginDetail,
   RuleImportResponse,
   RulePreviewResponse,
   ImportLog,
@@ -72,6 +102,7 @@ import type {
   GroupMember,
   GroupSettlement,
   GroupBalances,
+  GroupSummary,
   TransactionSplitsInput,
   TransactionEditPayload,
   InstallmentSeriesInput,
@@ -89,6 +120,7 @@ import type {
 const api = axios.create({
   baseURL: '/api',
 })
+export { api }
 
 // Storage key for the currently-selected workspace ID. Lives in
 // localStorage so reloads + new tabs stay on the same workspace until
@@ -120,6 +152,31 @@ api.interceptors.response.use(
   }
 )
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /** Set on POSTs that only read (previews, sign-in, tokens, tests) so
+     * they do not tell other tabs that data changed. */
+    skipDataChanged?: boolean
+  }
+}
+
+/** Request config for a POST that changes nothing on the server. */
+const readOnly = { skipDataChanged: true } as const
+
+// A successful mutation here changes data that other tabs may be showing.
+// The bump fires the `storage` event in those tabs, where
+// `useCrossTabRefresh` turns it into a cache invalidation (issue #763).
+// Read-only POSTs opt out: a preview query re-run by that invalidation would
+// otherwise bump again and make two open tabs refresh each other forever.
+api.interceptors.response.use(
+  (response: AxiosResponse) => {
+    const method = (response.config.method ?? 'get').toLowerCase()
+    if (method !== 'get' && !response.config.skipDataChanged) markDataChanged()
+    return response
+  },
+  (error: unknown) => Promise.reject(error)
+)
+
 // Workspaces
 export const workspaces = {
   list: async (): Promise<Workspace[]> => {
@@ -148,7 +205,7 @@ export const workspaces = {
     id: string,
     payload: Partial<
       Pick<Workspace, 'name' | 'icon' | 'color' | 'default_currency' | 'locale'>
-    > & { tax_jurisdiction?: string | null },
+    > & { tax_jurisdiction?: string | null; timezone?: string | null },
   ): Promise<Workspace> => {
     const { data } = await api.patch(`/workspaces/${id}`, payload)
     return data
@@ -197,6 +254,7 @@ export const auth = {
     formData.append('username', email)
     formData.append('password', password)
     const { data } = await api.post('/auth/login', formData, {
+      ...readOnly,
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
     return data
@@ -228,7 +286,7 @@ export const auth = {
     await api.post('/auth/2fa/disable', { password, code })
   },
   verify2fa: async (tempToken: string, code: string): Promise<{ access_token: string; token_type: string }> => {
-    const { data } = await api.post('/auth/2fa/verify', { temp_token: tempToken, code })
+    const { data } = await api.post('/auth/2fa/verify', { temp_token: tempToken, code }, readOnly)
     return data
   },
   listPasskeys: async (): Promise<Passkey[]> => {
@@ -255,7 +313,7 @@ export const auth = {
     await api.delete(`/auth/passkeys/${id}`)
   },
   passkeyAuthenticationOptions: async (email?: string): Promise<PasskeyOptionsResponse> => {
-    const { data } = await api.post('/auth/passkeys/authenticate/options', { email })
+    const { data } = await api.post('/auth/passkeys/authenticate/options', { email }, readOnly)
     return data
   },
   verifyPasskeyAuthentication: async (
@@ -265,11 +323,11 @@ export const auth = {
     const { data } = await api.post('/auth/passkeys/authenticate/verify', {
       challenge_id: challengeId,
       credential,
-    })
+    }, readOnly)
     return data
   },
   passkeySecondFactorOptions: async (tempToken: string): Promise<PasskeyOptionsResponse> => {
-    const { data } = await api.post('/auth/passkeys/2fa/options', { temp_token: tempToken })
+    const { data } = await api.post('/auth/passkeys/2fa/options', { temp_token: tempToken }, readOnly)
     return data
   },
   verifyPasskeySecondFactor: async (
@@ -281,7 +339,7 @@ export const auth = {
       temp_token: tempToken,
       challenge_id: challengeId,
       credential,
-    })
+    }, readOnly)
     return data
   },
   oidcConfig: async (): Promise<{ enabled: boolean; provider_name: string; local_auth_enabled: boolean }> => {
@@ -321,8 +379,14 @@ export const categories = {
     const { data } = await api.get(`/categories/${id}/rule-usage`)
     return data
   },
-  delete: async (id: string): Promise<void> => {
-    await api.delete(`/categories/${id}`)
+  usage: async (id: string): Promise<CategoryUsage> => {
+    const { data } = await api.get(`/categories/${id}/usage`)
+    return data
+  },
+  delete: async (id: string, transferToId?: string): Promise<void> => {
+    await api.delete(`/categories/${id}`, {
+      params: transferToId ? { transfer_to_category_id: transferToId } : undefined,
+    })
   },
 }
 
@@ -360,11 +424,11 @@ export const connections = {
     return data.providers
   },
   getConnectToken: async (provider = 'pluggy'): Promise<string> => {
-    const { data } = await api.post('/connections/connect-token', { provider })
+    const { data } = await api.post('/connections/connect-token', { provider }, readOnly)
     return data.access_token
   },
   getOAuthUrl: async (provider: string, flow_params?: Record<string, unknown>): Promise<string> => {
-    const { data } = await api.post('/connections/oauth/url', { provider, flow_params })
+    const { data } = await api.post('/connections/oauth/url', { provider, flow_params }, readOnly)
     return data.url
   },
   listInstitutions: async (
@@ -405,15 +469,15 @@ export const connections = {
     return data
   },
   getReauthUrl: async (connectionId: string): Promise<string> => {
-    const { data } = await api.post(`/connections/${connectionId}/oauth/reauth-url`)
+    const { data } = await api.post(`/connections/${connectionId}/oauth/reauth-url`, undefined, readOnly)
     return data.url
   },
-  sync: async (id: string): Promise<BankConnection> => {
+  sync: async (id: string): Promise<SyncResult> => {
     const { data } = await api.post(`/connections/${id}/sync`)
     return data
   },
   getReconnectToken: async (connectionId: string): Promise<string> => {
-    const { data } = await api.post(`/connections/${connectionId}/reconnect-token`)
+    const { data } = await api.post(`/connections/${connectionId}/reconnect-token`, undefined, readOnly)
     return data.access_token
   },
   updateSettings: async (
@@ -444,6 +508,7 @@ export const accounts = {
     balance?: number
     balance_date?: string
     currency?: string
+    secured_asset_id?: string | null
     credit_limit?: number | null
     statement_close_day?: number | null
     payment_due_day?: number | null
@@ -462,8 +527,20 @@ export const accounts = {
     const { data } = await api.get(`/accounts/${id}/summary`, { params: { from, to, bill_id: billId, unbilled_only: unbilledOnly || undefined } })
     return data
   },
-  balanceHistory: async (id: string, from?: string, to?: string): Promise<{ date: string; balance: number; balance_primary?: number }[]> => {
+  balanceHistory: async (id: string, from?: string, to?: string): Promise<{ date: string; balance: number; balance_primary?: number; fx_fallback?: boolean }[]> => {
     const { data } = await api.get(`/accounts/${id}/balance-history`, { params: { from, to } })
+    return data
+  },
+  runningBalance: async (id: string, from?: string, to?: string): Promise<AccountRunningBalancePoint[]> => {
+    const { data } = await api.get(`/accounts/${id}/running-balance`, { params: { from, to } })
+    return data
+  },
+  loanSchedule: async (id: string): Promise<LoanSchedule> => {
+    const { data } = await api.get(`/accounts/${id}/loan-schedule`)
+    return data
+  },
+  adjustLoanBalance: async (id: string, body: LoanBalanceUpdate): Promise<LoanBalanceAdjustment> => {
+    const { data } = await api.post(`/accounts/${id}/loan-balance`, body)
     return data
   },
   bills: async (id: string, limit = 24): Promise<CreditCardBill[]> => {
@@ -477,6 +554,49 @@ export const accounts = {
   reopen: async (id: string): Promise<Account> => {
     const { data } = await api.post(`/accounts/${id}/reopen`)
     return data
+  },
+}
+
+export interface MortgagePaymentAllocation {
+  loan_account_id: string
+  loan_name: string
+  principal_amount: number
+  interest_amount: number
+  payment_amount: number
+  principal_percentage: number
+  interest_percentage: number
+  historical: boolean
+  bank_managed: boolean
+}
+
+export const mortgagePayments = {
+  get: async (paymentId: string): Promise<{
+    payment_transaction_id: string
+    payment_amount: number
+    currency: string
+    payment_account_name: string
+    allocations: MortgagePaymentAllocation[]
+    principal_total: number
+    interest_total: number
+    principal_percentage: number
+    interest_percentage: number
+  }> => {
+    const { data } = await api.get(`/mortgage-payments/${paymentId}`)
+    return data
+  },
+  replace: async (
+    paymentId: string,
+    allocations: {
+      loan_account_id: string
+      principal_amount: number
+      interest_amount: number
+    }[],
+  ) => {
+    const { data } = await api.put(`/mortgage-payments/${paymentId}`, { allocations })
+    return data
+  },
+  remove: async (paymentId: string): Promise<void> => {
+    await api.delete(`/mortgage-payments/${paymentId}`)
   },
 }
 
@@ -496,10 +616,12 @@ export const transactions = {
     bill_id?: string
     group_id?: string
     unbilled_only?: boolean
+    statement_view?: boolean
     q?: string
     page?: number
     limit?: number
     include_opening_balance?: boolean
+    include_running_balance?: boolean
     exclude_transfers?: boolean
     user_pnl_only?: boolean
     exclude_ignored?: boolean
@@ -528,6 +650,10 @@ export const transactions = {
   },
   get: async (id: string): Promise<Transaction> => {
     const { data } = await api.get(`/transactions/${id}`)
+    return data
+  },
+  descriptionSuggestions: async (q: string, limit = 8): Promise<DescriptionSuggestion[]> => {
+    const { data } = await api.get('/transactions/description-suggestions', { params: { q, limit } })
     return data
   },
   create: async (transaction: TransactionEditPayload): Promise<Transaction> => {
@@ -559,6 +685,10 @@ export const transactions = {
     const { data } = await api.patch(`/transactions/${id}/unlink-recurring`)
     return data
   },
+  postToday: async (id: string): Promise<Transaction> => {
+    const { data } = await api.post(`/transactions/${id}/post-today`)
+    return data
+  },
   createTransfer: async (transfer: {
     from_account_id: string
     to_account_id: string
@@ -571,7 +701,7 @@ export const transactions = {
     const { data } = await api.post('/transactions/transfer', transfer)
     return data
   },
-  bulkCategorize: async (transactionIds: string[], categoryId: string | null): Promise<{ updated: number }> => {
+  bulkCategorize: async (transactionIds: string[], categoryId: string | null): Promise<{ updated: number; skipped_split?: number }> => {
     const { data } = await api.patch('/transactions/bulk-categorize', {
       transaction_ids: transactionIds,
       category_id: categoryId,
@@ -656,7 +786,7 @@ export const transactions = {
     if (options?.column_mapping && Object.keys(options.column_mapping).length > 0) {
       formData.append('column_mapping', JSON.stringify(options.column_mapping))
     }
-    const { data } = await api.post('/transactions/import/preview', formData)
+    const { data } = await api.post('/transactions/import/preview', formData, readOnly)
     return data
   },
   import: async (
@@ -756,6 +886,11 @@ export const fiscal = {
     const { data } = await api.get('/fiscal/tax-id-kinds')
     return data
   },
+  /** Fiscal references the workspace's jurisdiction suggests on a product. */
+  productFields: async (): Promise<{ jurisdiction: string | null; fields: ProductFieldSpec[] }> => {
+    const { data } = await api.get('/fiscal/product-fields')
+    return data
+  },
 }
 
 export interface PayeeWritePayload {
@@ -770,6 +905,67 @@ export interface PayeeWritePayload {
   is_favorite?: boolean
   /** Replaces the whole set. Omit to leave documents untouched. */
   tax_ids?: PayeeTaxId[]
+}
+
+export interface PricePayload {
+  currency: string
+  unit_price: string
+  tax_rate?: string | null
+  billing?: PriceBilling
+  interval?: InvoiceScheduleFrequency | null
+  nickname?: string | null
+  lookup_key?: string | null
+}
+
+export interface ProductPayload {
+  name?: string
+  description?: string | null
+  kind?: ProductKind
+  unit?: string | null
+  active?: boolean
+  fiscal_refs?: Record<string, string> | null
+  prices?: PricePayload[]
+}
+
+/** The catalog: what the workspace sells. Gated like invoices. */
+export const products = {
+  list: async (params?: { active?: boolean | null; kind?: ProductKind; q?: string }): Promise<Product[]> => {
+    const { data } = await api.get('/products', {
+      params: {
+        ...(params?.active === undefined ? {} : { active: params.active }),
+        ...(params?.kind ? { kind: params.kind } : {}),
+        ...(params?.q ? { q: params.q } : {}),
+      },
+    })
+    return data
+  },
+  get: async (id: string): Promise<Product> => {
+    const { data } = await api.get(`/products/${id}`)
+    return data
+  },
+  create: async (payload: ProductPayload): Promise<Product> => {
+    const { data } = await api.post('/products', payload)
+    return data
+  },
+  update: async (id: string, payload: ProductPayload): Promise<Product> => {
+    const { data } = await api.patch(`/products/${id}`, payload)
+    return data
+  },
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/products/${id}`)
+  },
+  addPrice: async (id: string, payload: PricePayload): Promise<Product> => {
+    const { data } = await api.post(`/products/${id}/prices`, payload)
+    return data
+  },
+  updatePrice: async (id: string, priceId: string, payload: Partial<PricePayload> & { active?: boolean }): Promise<Product> => {
+    const { data } = await api.patch(`/products/${id}/prices/${priceId}`, payload)
+    return data
+  },
+  removePrice: async (id: string, priceId: string): Promise<Product> => {
+    const { data } = await api.delete(`/products/${id}/prices/${priceId}`)
+    return data
+  },
 }
 
 export const payees = {
@@ -840,8 +1036,8 @@ export interface GroupSettlementPayload {
 }
 
 export const groups = {
-  list: async (includeArchived = false): Promise<Group[]> => {
-    const { data } = await api.get('/groups', { params: { include_archived: includeArchived } })
+  list: async (includeArchived = false, filters: { q?: string; status?: 'active' | 'archived' | 'all' } = {}): Promise<Group[]> => {
+    const { data } = await api.get('/groups', { params: { include_archived: includeArchived, ...filters } })
     return data
   },
   get: async (id: string): Promise<Group> => {
@@ -895,6 +1091,10 @@ export const groups = {
   },
   balances: async (groupId: string): Promise<GroupBalances> => {
     const { data } = await api.get(`/groups/${groupId}/balances`)
+    return data
+  },
+  summary: async (groupId: string): Promise<GroupSummary> => {
+    const { data } = await api.get(`/groups/${groupId}/summary`)
     return data
   },
   transactions: async (groupId: string, limit = 20): Promise<Transaction[]> => {
@@ -962,7 +1162,7 @@ export const rules = {
     limit?: number
     offset?: number
   }): Promise<RulePreviewResponse> => {
-    const { data } = await api.post('/rules/preview', draft)
+    const { data } = await api.post('/rules/preview', draft, readOnly)
     return data
   },
   applyAll: async (): Promise<{ applied: number }> => {
@@ -985,8 +1185,17 @@ export const rules = {
     const { data } = await api.post('/rules/import', { payload, overwrite })
     return data
   },
-  packs: async (): Promise<{ code: string; name: string; flag: string; rule_count: number; installed: boolean }[]> => {
+  packs: async (): Promise<RulePack[]> => {
     const { data } = await api.get('/rules/packs')
+    return data
+  },
+  packRemoval: async (packCode: string): Promise<RulePackRemoval> => {
+    const { data } = await api.get(`/rules/packs/${packCode}/removal`)
+    return data
+  },
+  /** `token` is the preview's; the server answers 409 if the plan changed since. */
+  removePack: async (packCode: string, token: string): Promise<RulePackRemoval> => {
+    const { data } = await api.delete(`/rules/packs/${packCode}`, { params: { token } })
     return data
   },
   installPack: async (
@@ -1156,6 +1365,18 @@ export const budgets = {
     const { data } = await api.get('/budgets/comparison', { params: { month } })
     return data
   },
+  suggestions: async (month: string, months: number): Promise<BudgetSuggestionResponse> => {
+    const { data } = await api.get('/budgets/suggestions', { params: { month, months } })
+    return data
+  },
+  createBatch: async (payload: {
+    month: string
+    is_recurring: boolean
+    items: { category_id: string; amount: number }[]
+  }): Promise<Budget[]> => {
+    const { data } = await api.post('/budgets/batch', payload)
+    return data
+  },
 }
 
 // Goals
@@ -1220,9 +1441,28 @@ export const dashboard = {
     const { data } = await api.get('/dashboard/projected-transactions', { params })
     return data
   },
-  balanceHistory: async (month?: string, accountIds?: string[]): Promise<BalanceHistory> => {
+  balanceHistory: async (
+    month?: string,
+    accountIds?: string[],
+    comparisonMonths?: string[],
+  ): Promise<BalanceHistory> => {
     const extra = acctIdsParam(accountIds)
-    const { data } = await api.get('/dashboard/balance-history', { params: { month, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
+    const { data } = await api.get('/dashboard/balance-history', {
+      params: {
+        month,
+        ...(extra.params ?? {}),
+        ...(comparisonMonths?.length ? { comparison_months: comparisonMonths } : {}),
+      },
+      paramsSerializer: { indexes: null },
+    })
+    return data
+  },
+  balanceHistoryMonths: async (accountIds?: string[]): Promise<string[]> => {
+    const extra = acctIdsParam(accountIds)
+    const { data } = await api.get('/dashboard/balance-history/months', {
+      params: extra.params,
+      ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}),
+    })
     return data
   },
 }
@@ -1325,7 +1565,7 @@ export const assets = {
     if (options?.column_mapping && Object.keys(options.column_mapping).length > 0) {
       formData.append('column_mapping', JSON.stringify(options.column_mapping))
     }
-    const { data } = await api.post('/assets/import/preview', formData)
+    const { data } = await api.post('/assets/import/preview', formData, readOnly)
     return data
   },
   importOrders: async (
@@ -1439,6 +1679,13 @@ export const reports = {
     const { data } = await api.get('/reports/cash-flow', { params: { months, interval, baseline, ...(extra.params ?? {}) }, ...(extra.paramsSerializer ? { paramsSerializer: extra.paramsSerializer } : {}) })
     return data
   },
+  // Oldest and newest transaction dates in the workspace (opening
+  // balances excluded). The reports page builds its year picker from
+  // these bounds (issue #765).
+  dataRange: async (): Promise<{ min_date: string | null; max_date: string | null }> => {
+    const { data } = await api.get('/reports/data-range')
+    return data
+  },
 }
 
 // Currencies
@@ -1491,7 +1738,7 @@ export const backup = {
     const { data } = await api.post(
       '/export/backup',
       password ? { password } : {},
-      { responseType: 'blob' },
+      { ...readOnly, responseType: 'blob' },
     )
     const blob = new Blob([data], { type: 'application/zip' })
     const url = URL.createObjectURL(blob)
@@ -1506,6 +1753,23 @@ export const backup = {
 }
 
 // Admin
+export interface TimezoneSetting {
+  /** The timezone in use, after fallbacks. */
+  timezone: string
+  /** What an administrator saved, valid or not; null when nothing is saved. */
+  saved: string | null
+  /** Where the application lands without a saved value. */
+  fallback: string
+  available: string[]
+}
+
+export const timezones = {
+  list: async (): Promise<{ default: string; available: string[] }> => {
+    const { data } = await api.get('/timezones')
+    return data
+  },
+}
+
 export const admin = {
   listUsers: async (params?: { search?: string; page?: number; limit?: number }): Promise<AdminUserList> => {
     const { data } = await api.get('/admin/users', { params })
@@ -1532,6 +1796,13 @@ export const admin = {
   },
   updateSetting: async (key: string, value: string): Promise<AppSetting> => {
     const { data } = await api.patch(`/admin/settings/${key}`, { value })
+    return data
+  },
+  deleteSetting: async (key: string): Promise<void> => {
+    await api.delete(`/admin/settings/${key}`)
+  },
+  timezone: async (): Promise<TimezoneSetting> => {
+    const { data } = await api.get('/admin/timezone')
     return data
   },
   registrationStatus: async (): Promise<{ enabled: boolean }> => {
@@ -1588,12 +1859,44 @@ export const search = {
 
 // App-level feature flags (whether optional modules like agents are mounted)
 export interface AppInfo {
-  features: { agents: boolean; tesouro_direto?: boolean }
+  features: { agents: boolean; tesouro_direto?: boolean; plugins?: boolean }
 }
 
 export const info = {
   get: async (): Promise<AppInfo> => {
     const { data } = await api.get('/info')
+    return data
+  },
+}
+
+// Data plugins -- only reachable when info.features.plugins === true.
+export const plugins = {
+  /** Installed in this workspace; reads the database only, never the catalog. */
+  installed: async (): Promise<InstalledPlugin[]> => {
+    const { data } = await api.get('/plugins')
+    return data
+  },
+  /** The catalog: fetched from the index now, so only call it when the user asks. */
+  catalog: async (): Promise<PluginCatalogEntry[]> => {
+    const { data } = await api.get('/plugins/catalog')
+    return data
+  },
+  /** One plugin with its README and contents: fetched from the catalog when it's opened. */
+  details: async (pluginId: string): Promise<PluginDetail> => {
+    const { data } = await api.get(`/plugins/${pluginId}`)
+    return data
+  },
+  plan: async (pluginId: string, action: PluginAction): Promise<PluginPlan> => {
+    const { data } = await api.get(`/plugins/${pluginId}/plan`, { params: { action } })
+    return data
+  },
+  /** Applies the plan the user saw; the server answers 409 if it changed since. */
+  apply: async (pluginId: string, plan: PluginPlan): Promise<PluginPlan> => {
+    const { data } = await api.post(`/plugins/${pluginId}/apply`, {
+      action: plan.action,
+      commit: plan.commit,
+      token: plan.token,
+    })
     return data
   },
 }
@@ -1737,7 +2040,13 @@ export const agents = {
     const { data } = await api.get(`/agents/${id}`)
     return data
   },
-  create: async (payload: Partial<Agent> & { name: string }): Promise<Agent> => {
+  create: async (
+    payload: Partial<Agent> & {
+      name: string
+      /** Tool whitelist saved with the agent in the same transaction. */
+      tools?: { server: string; tool_name: string; enabled: boolean }[]
+    },
+  ): Promise<Agent> => {
     const { data } = await api.post('/agents', payload)
     return data
   },
@@ -1827,7 +2136,7 @@ export const agents = {
       await api.delete(`/agents/connections/${id}`)
     },
     test: async (id: string): Promise<LlmConnectionTestResult> => {
-      const { data } = await api.post(`/agents/connections/${id}/test`)
+      const { data } = await api.post(`/agents/connections/${id}/test`, undefined, readOnly)
       return data
     },
   },
@@ -1859,6 +2168,111 @@ export interface InvoiceWritePayload {
   internal_notes?: string | null
   custom_fields?: Record<string, string> | null
   lines?: InvoiceLineInput[]
+  /** More than one due date. Must add up to the total; an empty list clears it. */
+  installments?: InstallmentInput[]
+}
+
+export interface MakeRecurringPayload {
+  frequency: InvoiceScheduleFrequency
+  start_date?: string
+  name?: string
+  end_type?: InvoiceScheduleEndType
+  end_date?: string | null
+  end_count?: number | null
+  payment_terms_days?: number | null
+}
+
+export interface InvoiceScheduleWritePayload {
+  name?: string
+  payee_id?: string | null
+  frequency?: InvoiceScheduleFrequency
+  start_date?: string
+  end_type?: InvoiceScheduleEndType
+  end_date?: string | null
+  end_count?: number | null
+  payment_terms_days?: number | null
+  currency?: string
+  notes?: string | null
+  custom_fields?: Record<string, string> | null
+  /** Create only: the first term, in force from `start_date`. */
+  lines?: InvoiceLineInput[]
+  discount?: string | null
+}
+
+export interface InvoiceScheduleTermPayload {
+  effective_from?: string
+  lines?: InvoiceLineInput[]
+  discount?: string | null
+}
+
+/** Recurring invoices: an agreement that emits one invoice per period.
+ *  Its own prefix, because `/invoices/{id}` would swallow `schedules`. */
+export const invoiceSchedules = {
+  list: async (params?: { status?: InvoiceScheduleStatus; payee_id?: string }): Promise<InvoiceSchedule[]> => {
+    const { data } = await api.get('/invoice-schedules', { params })
+    return data
+  },
+  summary: async (): Promise<InvoiceScheduleSummary> => {
+    const { data } = await api.get('/invoice-schedules/summary')
+    return data
+  },
+  get: async (id: string): Promise<InvoiceSchedule> => {
+    const { data } = await api.get(`/invoice-schedules/${id}`)
+    return data
+  },
+  invoices: async (id: string): Promise<Invoice[]> => {
+    const { data } = await api.get(`/invoice-schedules/${id}/invoices`)
+    return data
+  },
+  periods: async (id: string, ahead = 3): Promise<InvoiceSchedulePeriod[]> => {
+    const { data } = await api.get(`/invoice-schedules/${id}/periods`, { params: { ahead } })
+    return data
+  },
+  create: async (payload: InvoiceScheduleWritePayload): Promise<InvoiceSchedule> => {
+    const { data } = await api.post('/invoice-schedules', payload)
+    return data
+  },
+  update: async (id: string, payload: InvoiceScheduleWritePayload): Promise<InvoiceSchedule> => {
+    const { data } = await api.patch(`/invoice-schedules/${id}`, payload)
+    return data
+  },
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/invoice-schedules/${id}`)
+  },
+  pause: async (id: string): Promise<InvoiceSchedule> => {
+    const { data } = await api.post(`/invoice-schedules/${id}/pause`)
+    return data
+  },
+  resume: async (id: string): Promise<InvoiceSchedule> => {
+    const { data } = await api.post(`/invoice-schedules/${id}/resume`)
+    return data
+  },
+  end: async (id: string, payload: { reason: InvoiceScheduleEndReason; ended_at?: string }): Promise<InvoiceSchedule> => {
+    const { data } = await api.post(`/invoice-schedules/${id}/end`, payload)
+    return data
+  },
+  /** Emit the next period now, whether or not its date has come. */
+  generate: async (id: string): Promise<Invoice[]> => {
+    const { data } = await api.post(`/invoice-schedules/${id}/generate`)
+    return data
+  },
+  addTerm: async (id: string, payload: InvoiceScheduleTermPayload): Promise<InvoiceSchedule> => {
+    const { data } = await api.post(`/invoice-schedules/${id}/terms`, payload)
+    return data
+  },
+  updateTerm: async (id: string, termId: string, payload: InvoiceScheduleTermPayload): Promise<InvoiceSchedule> => {
+    const { data } = await api.patch(`/invoice-schedules/${id}/terms/${termId}`, payload)
+    return data
+  },
+  removeTerm: async (id: string, termId: string): Promise<InvoiceSchedule> => {
+    const { data } = await api.delete(`/invoice-schedules/${id}/terms/${termId}`)
+    return data
+  },
+  /** Say an existing invoice answers for a period of this agreement. */
+  link: async (id: string, payload: { invoice_id: string; period_start: string }): Promise<Invoice> => {
+    const { data } = await api.post(`/invoice-schedules/${id}/link`, payload)
+    return data
+  },
 }
 
 export const invoices = {
@@ -1868,7 +2282,7 @@ export const invoices = {
     })
     return data
   },
-  list: async (params?: { state?: string; year?: number; direction?: InvoiceDirection; payee_id?: string; q?: string } | Record<string, unknown>): Promise<Invoice[]> => {
+  list: async (params?: { state?: string; year?: number; direction?: InvoiceDirection; payee_id?: string; schedule_id?: string; q?: string; limit?: number } | Record<string, unknown>): Promise<Invoice[]> => {
     const cleanParams = params && !('queryKey' in params) ? params : undefined
     const { data } = await api.get('/invoices', { params: cleanParams })
     return data
@@ -1894,6 +2308,16 @@ export const invoices = {
   remove: async (id: string): Promise<void> => {
     await api.delete(`/invoices/${id}`)
   },
+  /** Turn this invoice into period one of a new agreement that repeats it. */
+  makeRecurring: async (id: string, payload: MakeRecurringPayload): Promise<InvoiceSchedule> => {
+    const { data } = await api.post(`/invoices/${id}/make-recurring`, payload)
+    return data
+  },
+  /** The invoice stops answering for a period. It stays as it is. */
+  unlinkSchedule: async (id: string): Promise<Invoice> => {
+    const { data } = await api.delete(`/invoices/${id}/schedule`)
+    return data
+  },
   // The decisions. Each is its own call for the same reason it is its own
   // route on the server: a status change always has a cause.
   issue: async (id: string): Promise<Invoice> => {
@@ -1917,6 +2341,18 @@ export const invoices = {
       transaction_id: transactionId,
       ...(amount ? { amount } : {}),
     })
+    return data
+  },
+  /** Close part of the debt without money: tax withheld, a fee kept. */
+  deduct: async (
+    id: string,
+    payload: { kind: DeductionKind; amount: string; tax_kind?: string | null; note?: string | null; transaction_id?: string | null },
+  ): Promise<Invoice> => {
+    const { data } = await api.post(`/invoices/${id}/deductions`, payload)
+    return data
+  },
+  undeduct: async (id: string, deductionId: string): Promise<Invoice> => {
+    const { data } = await api.delete(`/invoices/${id}/deductions/${deductionId}`)
     return data
   },
   unallocate: async (id: string, allocationId: string): Promise<Invoice> => {
@@ -1952,6 +2388,11 @@ export const invoices = {
    *  adds, which a plain <a href> would not carry. */
   pdf: async (id: string): Promise<Blob> => {
     const { data } = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' })
+    return data
+  },
+  /** The statement of account: payments and deductions since issue. */
+  statement: async (id: string): Promise<Blob> => {
+    const { data } = await api.get(`/invoices/${id}/statement`, { responseType: 'blob' })
     return data
   },
   share: async (id: string): Promise<InvoiceShareLink> => {
