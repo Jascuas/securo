@@ -31,8 +31,12 @@ vi.mock('recharts', async (importOriginal) => {
 // Testing Library only auto-cleans when vitest runs with `globals: true`, and
 // this project imports `describe`/`it`/`expect` explicitly instead. Unmount by
 // hand so one test's DOM never leaks into the next one's queries.
-afterEach(() => {
+afterEach(async () => {
   cleanup()
+  // Radix restores focus on a zero-delay timer after unmount. Let that finish
+  // while this jsdom realm still owns CustomEvent and the detached elements.
+  if (vi.isFakeTimers()) await vi.advanceTimersByTimeAsync(0)
+  else await new Promise((resolve) => setTimeout(resolve, 0))
   localStorage.clear()
   sessionStorage.clear()
 })
